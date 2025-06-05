@@ -1,0 +1,45 @@
+﻿@model List<AttendanceCRM.Models.DTOS.HolidaysDTO>
+
+@{
+    int rCnt = 1;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<!-- Page Header -->
+<div class="card shadow-sm border-0 mb-4" style="background-color: #E8F5E9;">
+    <div class="card-header text-dark d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="bx bx-calendar-event"></i> Holiday List</h4>
+        <a href="@Url.Action("Index", "Home")" class="btn btn-success btn-sm text-white">
+            <i class="bx bx-home"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Holiday Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead style="background-color: #C8E6C9;">
+                <tr class="text-center">
+                    <th>SNo</th>
+                    <th>Holiday Date</th>
+                    <th>Holiday Name</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in Model)
+                {
+                    <tr class="text-center" style="background-color: #E8F5E9;">
+                        <td>@(rCnt++)</td>
+                        <td>@(v.HolidayDate.HasValue ? v.HolidayDate.Value.ToString("yyyy-MM-dd") : "-")</td>
+                        <td class="fw-bold">@v.HolidayName</td>
+                        <td>@v.HolidayDescription</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

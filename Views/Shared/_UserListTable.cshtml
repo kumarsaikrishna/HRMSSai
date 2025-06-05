@@ -1,0 +1,65 @@
+﻿@model List<AttendanceCRM.Models.DTOS.UserMasterDTO>
+
+<thead class="thead-light">
+    <tr>
+        <th>SNO</th> <!-- Hide this column -->
+        <th>Profile Picture</th>
+        <th>Employee ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Designation</th>
+        <th>Joining Date</th>
+        <th>Actions</th>
+    </tr>
+</thead>
+
+<tbody>
+
+    @{
+        // Sort the model by user name alphabetically
+        var sortedModel = Model.OrderBy(x => x.UserName).ToList();
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var v in sortedModel)
+    {
+        <tr id="row-@v.UserId">
+            <td>@(rCnt++)</td> <!-- Hide the UserId value -->
+            <td>
+                @if (!string.IsNullOrEmpty(v.ProfilePicture))
+                {
+                    <img src="@Url.Content("~/UploadedImages/" + v.ProfilePicture)" class="img-fluid rounded-circle" style="width: 50px; height: 50px;">
+                }
+                else
+                {
+                    <img src="@Url.Content("~/UploadedImages/dummy.png")" class="img-fluid rounded-circle" style="width: 50px; height: 50px;">
+                }
+            </td>
+            <td>@v.EmployeeId</td>
+            <td>@v.UserName</td>
+            <td>@v.Email</td>
+            <td>@v.MobileNumber</td>
+            <td>@v.Designation</td>
+            <td>@v.DateOfJoining</td>
+            <td>
+                <div class="d-flex gap-2 justify-content-center">
+                    <!-- View Button -->
+                    <a href="~/User/DeatilUser?userid=@v.UserId" class="btn btn-sm btn-info" title="View">
+                        <i class="bx bx-low-vision"></i>
+                    </a>
+
+                    <!-- Edit Button -->
+                    <a href="~/User/EditUser?userid=@v.UserId" class="btn btn-sm btn-primary" title="Edit">
+                        <i class="bx bx-edit"></i>
+                    </a>
+
+                    <!-- Delete Button -->
+                    <button class="btn btn-sm btn-danger delete-holiday" data-id="@v.UserId" title="Delete">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+
+            </td>
+        </tr>
+    }
+</tbody>

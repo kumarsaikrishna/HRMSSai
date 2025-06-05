@@ -1,0 +1,92 @@
+﻿@model List<AttendanceCRM.Models.DTOS.HolidaysDTO>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    int rCnt = 1;
+}
+
+<!-- Add Boxicons -->
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<style>
+    .holiday-table th, .holiday-table td {
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .badge-success {
+        background-color: #28a745;
+    }
+
+    .badge-danger {
+        background-color: #dc3545;
+    }
+
+    .card-custom {
+        border-radius: 1rem;
+        box-shadow: 0 0 15px rgba(0,0,0,0.05);
+    }
+
+    .table thead {
+        background-color: #f8f9fa;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .header-title {
+        font-weight: bold;
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .badge {
+        padding: 0.5em 1em;
+        font-size: 0.9em;
+        border-radius: 12px;
+    }
+
+</style>
+
+<!-- Page Heading -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="header-title"><i class='bx bxs-calendar'></i> Holiday List</h2>
+</div>
+
+<!-- Card Wrapper -->
+<div class="card card-custom">
+    <div class="card-body p-3">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover holiday-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>SNo</th>
+                        <th>Holiday Date</th>
+                        <th>Holiday Name</th>
+                        <th>Description</th>
+                        <th>Created By</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var v in Model)
+                    {
+                        bool isUpcoming = v.HolidayDate >= DateTime.Now.Date;
+                        string statusText = isUpcoming ? "Upcoming" : "Completed";
+                        string badgeClass = isUpcoming ? "badge badge-success" : "badge badge-danger";
+                        <tr>
+                            <td>@(rCnt++)</td>
+                            <td>@(v.HolidayDate?.ToString("yyyy-MM-dd"))</td>
+                            <td>@v.HolidayName</td>
+                            <td>@v.HolidayDescription</td>
+                            <td>@v.UserTypeName</td>
+                            <td><span class="@badgeClass">@statusText</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

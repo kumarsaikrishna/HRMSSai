@@ -1,0 +1,700 @@
+﻿ @model AttendanceCRM.Models.DTOS.AttendanceViewModel
+
+@{
+    var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+    var punchInTime = Model.PunchInTime.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(Model.PunchInTime.Value, istTimeZone)
+        : (DateTime?)null;
+}
+
+
+
+<style type="text/css">
+    .attendance-circle-progress {
+        position: relative;
+        width: 150px; /* Adjust size as needed */
+        height: 150px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 3px solid #ADD8E6;
+        background: #e0e0e0;
+    }
+
+        /* Water fill element that will grow from the bottom */
+        .attendance-circle-progress .water-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%; /* Starts empty */
+            background: #ADD8E6; /* Water color (light blue) */
+            z-index: 1;
+            transition: height 1s ease; /* Smooth transition on height update */
+        }
+
+        /* Center the total work hours text */
+        .attendance-circle-progress .total-work-hours {
+            position: absolute;
+            z-index: 2;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #333;
+            font-weight: bold;
+        }
+</style>
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        checkAttendanceStatus();
+    });
+
+    function punchIn() {
+        let punchInButton = document.getElementById("punch-in-btn");
+        if (!navigator.geolocation) {
+            Swal.fire({
+                title: "Error",
+                text: "GPS is not supported by your browser. Please enable location services.",
+                icon: "error",
+                confirmButtonText: "OK"
+            });
+            return;
+        }
+
+        punchInButton.disabled = true;
+        punchInButton.innerHTML = "Punching In...";
+
+        navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+    }
+
+    function successCallback(position) {
+        let latitude = position.coords.latitude;
+        let longitude = position.coords.longitude;
+
+        fetch('/Home/PunchIn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude, longitude })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data || !data.message) throw new Error("Invalid response from server.");
+                Swal.fire({
+                    title: "Success!",
+                    text: data.message,
+                    icon: "success",
+                    confirmButtonText: "OK"
+                }).then(() => window.location.reload());
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                Swal.fire({
+                    title: "Warning!",
+                    text: error.message || "⚠️ Punch-in allowed only in office premises.",
+                    icon: "warning",
+                    confirmButtonText: "OK"
+                });
+                punchInButton.disabled = false;
+                punchInButton.innerHTML = "Punch In";
+            });
+    }
+
+    function errorCallback(error) {
+        Swal.fire({
+            title: "Error!",
+            text: "Error getting location: " + error.message,
+            icon: "error",
+            confirmButtonText: "OK"
+        });
+    }
+
+    function punchOut() {
+        const punchOutBtn = document.getElementById("punch-out-btn");
+        punchOutBtn.disabled = true;
+
+        fetch('/Home/PunchOut', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(error => {
+                        throw new Error(error.message || "Punch out failed.");
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                Swal.fire({
+                    title: "Success!",
+                    text: data.message,
+                    icon: "success",
+                    confirmButtonText: "OK"
+                }).then(() => window.location.reload());
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                punchOutBtn.disabled = false;
+                Swal.fire({
+                    title: "Error!",
+                    text: error.message || "Something went wrong!",
+                    icon: "error",
+                    confirmButtonText: "OK"
+                });
+            });
+    }
+
+    function pad(num) {
+        return num < 10 ? "0" + num : num;
+    }
+
+    function updateTimerDisplay(punchInTime) {
+        const punchInDate = new Date(punchInTime);
+        const now = new Date();
+        const diffMs = now - punchInDate;
+        const totalSeconds = Math.floor(diffMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        document.getElementById("total-work-hours").innerText = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+        const maxSeconds = 8 * 3600;
+        let fillPercentage = Math.min((totalSeconds / maxSeconds) * 100, 100);
+
+        const waterFillElem = document.querySelector('.attendance-circle-progress .water-fill');
+        if (waterFillElem) waterFillElem.style.height = fillPercentage + '%';
+    }
+
+    function checkAttendanceStatus() {
+        fetch('/Home/GetAttendanceStatus', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                const punchInDate = data.punchInTime ? new Date(data.punchInTime) : null;
+
+                if (data.canPunchIn) {
+                    document.getElementById("punch-in-btn").style.display = "block";
+                    document.getElementById("punch-in-btn").disabled = false;
+                    document.getElementById("punch-out-btn").style.display = "none";
+                    document.getElementById("punch-in-info").style.display = "none";
+
+                    if (checkAttendanceStatus.timerInterval) {
+                        clearInterval(checkAttendanceStatus.timerInterval);
+                        checkAttendanceStatus.timerInterval = null;
+                    }
+
+                    document.getElementById("total-work-hours").innerText = "00:00:00";
+                    const waterFillElem = document.querySelector('.attendance-circle-progress .water-fill');
+                    if (waterFillElem) waterFillElem.style.height = '0%';
+
+                } else if (data.isPunchedIn) {
+                    document.getElementById("punch-in-btn").style.display = "none";
+                    document.getElementById("punch-out-btn").style.display = "block";
+                    document.getElementById("punch-in-info").style.display = "block";
+
+                    if (!checkAttendanceStatus.timerInterval && data.punchInTime) {
+                        updateTimerDisplay(data.punchInTime);
+                        checkAttendanceStatus.timerInterval = setInterval(() => {
+                            updateTimerDisplay(data.punchInTime);
+                        }, 1000);
+                    }
+                } else {
+                    if (checkAttendanceStatus.timerInterval) {
+                        clearInterval(checkAttendanceStatus.timerInterval);
+                        checkAttendanceStatus.timerInterval = null;
+                    }
+
+                    document.getElementById("punch-in-btn").style.display = "block";
+                    document.getElementById("punch-in-btn").disabled = true;
+                    document.getElementById("punch-out-btn").style.display = "none";
+                    document.getElementById("punch-in-info").style.display = "none";
+                    document.getElementById("total-work-hours").innerText = data.totalHours || "00:00:00";
+                }
+            })
+            .catch(error => console.error("Error:", error));
+    }
+
+    // Call checkAttendanceStatus every minute
+    setInterval(checkAttendanceStatus, 60000);
+
+    // Auto Punch Out at 11:59 PM
+    setInterval(() => {
+        const now = new Date();
+        if (now.getHours() === 23 && now.getMinutes() === 59) {
+            autoPunchOut();
+        }
+    }, 60000);
+
+    function autoPunchOut() {
+        fetch('/Home/AutoPunchOut', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Auto Punch-Out Successful:", data);
+                checkAttendanceStatus();
+            })
+            .catch(error => console.error("Error:", error));
+    }
+
+    // Auto Mark Absent at 4:30 AM IST (UTC +5:30 = 23:00 UTC)
+    setInterval(() => {
+        let now = new Date();
+        now.setMinutes(now.getMinutes() + 330); // Convert to IST
+
+        if (now.getUTCHours() === 22 && now.getUTCMinutes() === 30) {
+            autoMarkAbsent();
+        }
+    }, 60000);
+
+    function autoMarkAbsent() {
+        fetch('/Home/AutoMarkAbsent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Absent marked successfully:", data);
+            })
+            .catch(error => console.error("Absent mark error:", error));
+    }
+
+    function formatTime(date) {
+        if (!(date instanceof Date)) return "00:00:00";
+        let hours = date.getHours().toString().padStart(2, '0');
+        let minutes = date.getMinutes().toString().padStart(2, '0');
+        let seconds = date.getSeconds().toString().padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
+    // Fetch total work hours for the day and week
+    fetch('/Home/GetWorkHours')
+        .then(response => response.json())
+        .then(data => {
+            let totalHoursToday = document.getElementById("total-hours-today");
+            let totalHoursWeek = document.getElementById("total-hours-week");
+
+            if (totalHoursToday) totalHoursToday.innerText = data.totalWorkHoursToday || "00:00:00";
+            if (totalHoursWeek) totalHoursWeek.innerText = data.totalWorkHoursWeek || "00:00:00";
+        })
+        .catch(error => console.error('Error fetching work hours:', error));
+
+</script>
+
+<script>
+    $(document).ready(function () {
+        loadNotifications();
+
+        function loadNotifications() {
+            $.get("/Home/GetNotifications", function (response) {
+                if (response.success) {
+                    let notificationList = $("#notificationList");
+                    let notificationCount = $("#notificationCount");
+
+                    notificationList.find("li:not(:first)").remove();
+
+                    if (response.wishes.length > 0) {
+                        notificationCount.text(response.wishes.length).removeClass("d-none");
+                        response.wishes.forEach(function (wish) {
+                            notificationList.append(`
+                                    <li class="dropdown-item text-success">
+                                        ${wish.message} <br>
+                                        <small class="text-muted">${wish.createdOn}</small>
+                                    </li>
+                                `);
+                        });
+                    } else {
+                        notificationList.append(`<li class="dropdown-item text-muted">No new notifications</li>`);
+                        notificationCount.addClass("d-none");
+                    }
+                }
+            });
+        }
+
+        $('#yearDropdown').change(function () {
+            var selectedYear = $(this).val();
+            $.ajax({
+                url: '/Home/Index',
+                type: 'GET',
+                data: { year: selectedYear },
+                success: function (response) {
+                    // handle page update if needed
+                    location.reload();
+                }
+            });
+        });
+    });
+</script>
+
+ 
+
+
+
+
+
+
+<!-- Breadcrumb -->
+<div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
+    <div class="d-flex align-items-center justify-content-between w-100">
+        <!-- Left Section: Dashboard Title -->
+        <h2 class="mb-1">Employee Dashboard</h2>
+
+        <!-- Right Section: Notification Bell -->
+        <div class="nav-item dropdown">
+            <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-bell"></i> 
+                <span id="notificationCount" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+                    0
+                </span>
+            </a>
+
+            <!-- Notification Dropdown -->
+            <ul class="dropdown-menu dropdown-menu-end p-2" aria-labelledby="notificationDropdown" id="notificationList">
+                <li><h6 class="dropdown-header text-danger">Notifications</h6></li> <!-- Added text-danger -->
+            </ul>
+
+        </div>
+    </div>
+</div>
+
+
+<div class="row">
+    <div class="col-xl-4 d-flex">
+        <div class="card position-relative flex-fill">
+            <div class="card-header bg-dark">
+                <div class="d-flex align-items-center">
+                    <span class="avatar avatar-lg bg-dark rounded-circle">
+                        <img src="@Url.Content("~/UploadedImages/" + @Model.ProfilePicture)" class="img-fluid" style="width: 50px; height: 50px; border-radius: 50%;" alt="Img">
+                    </span>
+                    <div>
+                        <h5 class="text-white mb-1">@Model.UserName</h5>
+                        <div class="d-flex align-items-center">
+                            <p class="text-white fs-12 mb-0">@Model.Designation</p>
+                            @* <span class="mx-1"><i class="ti ti-point-filled text-primary"></i></span>
+                            <p class="fs-12">UI/UX Design</p> *@
+                        </div>
+                    </div>
+                </div>
+                <a href="~/Home/EditUserempdash?userid=@Model.UserId" class="btn btn-icon btn-sm text-white rounded-circle edit-top"><i class="ti ti-edit"></i></a>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <span class="d-block mb-1 fs-13">Phone Number</span>
+                    <p class="text-gray-9">@Model.MobileNumber</p>
+                </div>
+                <div class="mb-3">
+                    <span class="d-block mb-1 fs-13">Email Address</span>
+                    <p class="text-gray-9"><a class="__cf_email__">@Model.Email</a></p>
+                </div>
+                @* <div class="mb-3">
+                <span class="d-block mb-1 fs-13">Report Office</span>
+                <p class="text-gray-9">Doglas Martini</p>
+                </div> *@
+                <div class="mb-3">
+                    <span class="d-block mb-1 fs-13">Employee Id</span>
+                    <p class="text-gray-9">@Model.EmployeeId</p>
+                </div>
+                <div>
+                    <span class="d-block mb-1 fs-13">Joined on</span>
+                    <p class="text-gray-9">@(Model.DateOfJoining.HasValue ? Model.DateOfJoining.Value.ToString("yyyy-MM-dd") : "")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   <div class="col-xl-4 d-flex">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
+                <h5>Leave Details</h5>
+                    <select id="yearDropdown" class="form-control">
+                        @for (int i = DateTime.Now.Year; i >= DateTime.Now.Year - 5; i--)
+                        {
+                            <option value="@i" selected="@(i == (ViewBag.SelectedYear ?? DateTime.Now.Year) ? "selected" : null)">
+                                @i
+                            </option>
+                        }
+                    </select>
+
+            </div>
+        </div>
+        <div class="card-body" id="leaveDetails">
+            <div class="row align-items-center">
+                <div class="col-sm-6">
+                    <div class="mb-4">
+                        <span class="d-block mb-1">Total Leaves</span>
+                        <h4 id="totalLeaves">@Model.TotalLeaves</h4>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="mb-4">
+                        <span class="d-block mb-1">Taken</span>
+                        <h4 id="takenLeaves">@Model.Taken</h4>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="mb-4">
+                        <span class="d-block mb-1">Absent</span>
+                        <h4 id="absentLeaves">@Model.Absent</h4>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="mb-4">
+                        <span class="d-block mb-1">Request</span>
+                        <h4 id="requestedLeaves">@Model.Requests</h4>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="mb-4">
+                        <span class="d-block mb-1">Worked Days</span>
+                        <h4 id="workedDays">@Model.WorkedDays</h4>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="mb-4">
+                        <span class="d-block mb-1">Loss of Pay</span>
+                        <h4 id="lossOfPay">@Model.LossOfPay</h4>
+                    </div>
+                </div>
+                <div class="col-sm-12">
+                    <div>
+                        <a href="~/Common/ApplyLeave" class="btn btn-dark w-100 mt-2">Apply Leave</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+    <script>
+        function applyLeave() {
+            window.location.href = '@Url.Action("ApplyLeave", "Common")'; // Change to your controller/action
+        }
+    </script>
+
+    <div class="col-xl-4 d-flex">
+
+        @* <div class="card">
+        <div class="card-header">
+        <h5 class="card-title">With Indicators</h5>
+        </div>
+        <div class="card-body">
+        <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel">
+        <ol class="carousel-indicators">
+        <li data-bs-target="#carouselExampleIndicators" data-bs-slide-to="0"
+        class="active"></li>
+        <li data-bs-target="#carouselExampleIndicators" data-bs-slide-to="1"></li>
+        <li data-bs-target="#carouselExampleIndicators" data-bs-slide-to="2"></li>
+        </ol>
+        <div class="carousel-inner" role="listbox">
+        <div class="carousel-item active">
+        <div class="card card-bg-5 bg-dark mb-3">
+        @if (TempData["BirthdayWishMessage"] != null)
+        {
+        <div class="alert alert-success">
+        <strong>Message:</strong> @TempData["BirthdayWishMessage"]
+        </div>
+        }
+
+        <div class="card-body">
+        <h5 class="card-title">Birthday Wishes</h5>
+        <ul class="list-group">
+        @foreach (var birthday in ViewBag.MonthlyBirthdays)
+        {
+        <div class="card card-bg-5 bg-dark mb-3">
+        <div class="card-body text-center">
+        <span class="avatar avatar-xl avatar-rounded mb-2">
+        <img src="@Url.Content("~/UploadedImages/" + birthday.ProfilePicture)"
+        class="img-fluid"
+        style="width: 50px; height: 50px; border-radius: 50%;"
+        alt="Img">
+        </span>
+        <h6 class="text-white fw-medium mb-1">@birthday.UserName</h6>
+        <p class="text-white">@birthday.Designation</p>
+        <form method="post" asp-action="SendWishes" asp-controller="Home">
+        <input type="hidden" name="userId" value="@birthday.UserId" />
+        <button type="submit" class="btn btn-sm btn-primary">Send Wishes</button>
+        </form>
+        </div>
+        </div>
+        }
+        </ul>
+        </div>
+
+        </div>
+        </div>
+        </div>
+        <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button"
+        data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+        </a>
+        <a class="carousel-control-next" href="#carouselExampleIndicators" role="button"
+        data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+        </a>
+        </div>
+
+        </div>
+        </div> *@
+
+        <div class="card flex-fill border-primary attendance-bg">
+            <div class="card-body">
+                <div class="mb-4 text-center">
+                    <h6 class="fw-medium text-gray-5 mb-1">Attendance</h6>
+                    <h4>@Model.UserName</h4> <!-- Display the User's Name -->
+                </div>
+                <div class="attendance-circle-progress attendance-progress mx-auto mb-3">
+                    <div class="water-fill"></div>
+                    <div class="total-work-hours text-center w-100">
+                        <span class="fs-13 d-block mb-1">Total Hours</span>
+                        <h6 id="total-work-hours">00:00:00</h6> <!-- display total work hours -->
+                    </div>
+                </div>
+
+
+
+
+                <div class="text-center">
+                    <!-- Punch In Info (Initially Hidden) -->
+                    <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
+                        style="display: @(Model.IsPunchedIn ? "flex" : "none"); gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <i class="ti ti-fingerprint text-primary"></i>
+                        <span>Punched In at</span>
+                        <span id="punch-in-time" class="fw-bold">
+                            @Model.PunchInTime?.ToString("hh:mm:ss tt")
+                        </span>
+
+                    </h6>
+
+                    <!-- Punch In Button -->
+                    <button type="submit" class="btn btn-primary w-100" id="punch-in-btn"
+                            style="display: none;"
+                            onclick="punchIn()">
+                        Punch In
+                    </button>
+
+
+                    <!-- Punch Out Button -->
+                    <button type="button" class="btn btn-danger w-100" id="punch-out-btn"
+                            style="display: none;" onclick="punchOut()">
+                        Punch Out
+                    </button>
+
+                     
+                </div>
+
+            </div>
+        </div>
+
+
+    </div>
+    <div class="card bg-warning">
+        <div class="card-body d-flex align-items-center justify-content-between p-3">
+            <div>
+                <h5 class="mb-1">Next Holiday</h5>
+                <p class="text-secondary">@ViewBag.NextHolidayName, @ViewBag.NextHolidayDate</p>
+            </div>
+
+            @if (ViewBag.UserDetails?.userTypeName == "SuperAdmin" || ViewBag.UserDetails?.userTypeName == "Admin" || ViewBag.UserDetails?.userTypeName == "HR")
+            {
+                <a href="@Url.Action("HolidaysList", "Common")" class="btn btn-light btn-sm px-3" aria-label="View all holidays">View All</a>
+            }
+            else if (ViewBag.UserDetails?.userTypeName == "Employee")
+            {
+                <a href="@Url.Action("HolidaysListempdash", "Home")" class="btn btn-light btn-sm px-3" aria-label="View all holidays">View All</a>
+            }
+
+        </div>
+    </div>
+
+
+</div>
+<div class="row">
+    <div class="col-xl-4 d-flex">
+        <div class="card card-bg-8 bg-dark mb-3">
+            <div class="card-header">
+                <h5 class="card-title text-white">Birthday Wishes</h5>
+            </div>
+            <div class="card-body">
+                @if (TempData["BirthdayWishMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <strong> @TempData["BirthdayWishMessage"]</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
+                @if (ViewBag.MonthlyBirthdays != null && ViewBag.MonthlyBirthdays.Count > 0)
+                {
+                    <!-- Bootstrap Carousel -->
+                    <div id="birthdayCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <!-- Indicators -->
+                        <ol class="carousel-indicators">
+                            @for (int i = 0; i < ViewBag.MonthlyBirthdays.Count; i++)
+                            {
+                                <li data-bs-target="#birthdayCarousel" data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"></li>
+                            }
+                        </ol>
+
+                        <!-- Carousel Items -->
+                        <div class="carousel-inner">
+                            @for (int i = 0; i < ViewBag.MonthlyBirthdays.Count; i++)
+                            {
+                                var birthday = ViewBag.MonthlyBirthdays[i];
+                                <div class="carousel-item @(i == 0 ? "active" : "")">
+                                    <div class="card bg-dark text-center p-3">
+                                        <span class="avatar avatar-xl avatar-rounded mb-2">
+                                            <img src="@Url.Content("~/UploadedImages/" + birthday.ProfilePicture)"
+                                                 class="img-fluid"
+                                                 style="width: 70px; height: 70px; border-radius: 50%;"
+                                                 alt="Img">
+                                        </span>
+                                        <h6 class="text-white fw-medium mb-1">@birthday.UserName</h6>
+                                        <p class="text-white">@birthday.Designation</p>
+                                        <form method="post" asp-action="SendWishes" asp-controller="Home">
+                                            <input type="hidden" name="userId" value="@birthday.UserId" />
+                                            <button type="submit" class="btn btn-sm btn-primary">Send Wishes</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Controls (Prev / Next) -->
+                        <button class="carousel-control-prev small-btn" type="button" data-bs-target="#birthdayCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next small-btn" type="button" data-bs-target="#birthdayCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <h5 class="text-white text-center">🎉 No birthdays today 🎉</h5>
+                    </div>
+
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+

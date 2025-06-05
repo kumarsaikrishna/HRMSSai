@@ -1,0 +1,167 @@
+﻿@model AttendanceCRM.Models.DTOS.PayslipDTO
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var hideAllowances = ViewBag.UserType == "OnBoard Traine" || ViewBag.UserType == "HR OnBoarding";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Slip</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        .container {
+            width: 800px;
+            margin: auto;
+            border: 2px solid black;
+            padding: 20px;
+        }
+
+        .header {
+            font-size: 24px;
+            font-weight: bold;
+            color: goldenrod;
+        }
+
+        .sub-header {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .bold-text {
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">GUARDIANS IT SERVICES PVT. LTD.</div>
+        <div class="sub-header">SALARY SLIP: @Model.SalaryMonth</div>
+
+        <table>
+            <tr>
+                <td><b>Employee Name:</b> @Model.EmployeeName</td>
+                <td><b>Date of Joining:</b> @Model.DOJ?.ToString("dd-MMM-yyyy")</td>
+            </tr>
+            <tr>
+                <td><b>Employee Number:</b> @Model.EmployeeCode</td>
+                <td><b>LOP:</b> @Model.LOP</td>
+            </tr>
+            <tr>
+                <td><b>Designation:</b> @Model.Designation</td>
+                <td><b>Pay Days:</b> @Model.PayDays</td>
+            </tr>
+            <tr>
+                <td><b>PAN:</b> @Model.PAN</td>
+                <td><b>Payment Method:</b> Bank</td>
+            </tr>
+            <tr>
+                <td><b>UAN:</b> @Model.UAN</td>
+                <td><b>Bank A/C Number:</b> @Model.AccountNumber</td>
+            </tr>
+            <tr>
+                <td><b>Bank Name:</b> @Model.BankName</td>
+                <td><b>IFSC Code:</b> @Model.IFSC</td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <th>Description</th>
+                <th>Amount (Rs.)</th>
+                <th>Description</th>
+                <th>Amount (Rs.)</th>
+            </tr>
+
+            <tr>
+                <td>Basic</td>
+                <td>₹@Model.BasicSalary.ToString("N0")</td>
+                <td>PF Employee</td>
+                <td>₹@Model.PF_Employee.ToString("N0")</td>
+            </tr>
+
+            @if (!hideAllowances)
+            {
+                <tr>
+                    <td>House Rent Allowance (HRA)</td>
+                    <td>₹@Model.HRA.ToString("N0")</td>
+                    <td>Professional Tax</td>
+                    <td>₹@Model.ProfessionalTax.ToString("N0")</td>
+                </tr>
+                <tr>
+                    <td>Special Allowance</td>
+                    <td>₹@Model.SpecialAllowance.ToString("N0")</td>
+                    <td>TDS</td>
+                    <td>₹0</td>
+                </tr>
+                <tr>
+                    <td>Conveyance</td>
+                    <td>₹@Model.Conveyance.ToString("N0")</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            }
+            else
+            {
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td>Professional Tax</td>
+                    <td>₹@Model.ProfessionalTax.ToString("N0")</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td>TDS</td>
+                    <td>₹0</td>
+                </tr>
+            }
+
+            <tr class="bold-text">
+                <td>Total Gross Income</td>
+                <td>₹@Model.GrossSalary.ToString("N0")</td>
+                <td>Total Gross Deductions</td>
+                <td>₹@Model.Deductions.ToString("N0")</td>
+            </tr>
+            <tr class="bold-text">
+                <td colspan="2">Total Net Income</td>
+                <td colspan="2">₹@Model.NetSalary.ToString("N0")</td>
+            </tr>
+        </table>
+
+        <div class="bold-text">@Model.NetSalaryInWords Rupees Only</div>
+
+        <div class="footer">*Note: This is a system generated document and does not require any stamp or signature.</div>
+
+        <div class="footer">
+            <b>Guardians IT Services Private Limited</b><br>
+            PSR Prime Tower Block-A, 2nd Floor, Suite# 207, DLF Road, Gachibowli, Hyderabad – 500032.<br>
+            <b>Contact:</b> 7075006350 | <b>Email:</b> info@guardiansinfotech.com | <b>Website:</b> www.guardiansinfotech.com
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+﻿@model List<AttendanceCRM.Models.DTOS.LeavesDTO>
+
+<thead class="thead-light">
+    <tr>
+        <th>SNo</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Leave Type</th>
+        <th>From Date</th>
+        <th>To Date</th>
+        <th>Status</th>
+        <th>Remarks</th>
+        <th>Actions</th>
+    </tr>
+</thead>
+<tbody>
+    @{
+       
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var leave in Model)
+    {
+        <tr id="row-@leave.LeaveId">
+            <td>@(rCnt++)</td>
+            <td>@leave.UserName</td>
+            <td>@leave.Description</td>
+            <td>@leave.LeaveType</td>
+            <td>@leave.FromDate.ToString("yyyy-MM-dd")</td>
+            <td>@leave.ToDate.ToString("yyyy-MM-dd")</td>
+            <td id="status-@leave.LeaveId">@leave.Status</td>
+            <td>@leave.Remarks</td>
+            <td>
+                @if (leave.Status != "Accepted" && leave.Status != "Rejected")
+                {
+                    <button class="btn btn-success btn-sm accept-leave" data-id="@leave.LeaveId">✔️</button>
+                    <button class="btn btn-danger btn-sm reject-leave" data-id="@leave.LeaveId">❌</button>
+                }
+            </td>
+        </tr>
+    }
+</tbody>

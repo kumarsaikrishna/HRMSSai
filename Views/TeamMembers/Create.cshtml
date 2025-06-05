@@ -1,0 +1,49 @@
+﻿@model AttendanceCRM.Models.Entities.TeamMemberEntity
+
+@{
+    ViewData["Title"] = "Add Team Member";
+}
+
+<h2>Add Team Member</h2>
+
+<form asp-action="Create" asp-controller="TeamMembers" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="form-group">
+        <label>Project</label>
+        <select asp-for="ProjectId" class="form-control" asp-items="@ViewData["Projects"] as SelectList">
+            <option value="">-- Select Project --</option>
+        </select>
+        <span asp-validation-for="ProjectId" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label>Team Lead</label>
+        <select asp-for="TeamLeadId" class="form-control" asp-items="@ViewData["Users"] as SelectList">
+            <option value="">-- Select Team Lead --</option>
+        </select>
+        <span asp-validation-for="TeamLeadId" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label>Member</label>
+        <select asp-for="MemberId" class="form-control" asp-items="@ViewData["Users"] as SelectList">
+            <option value="">-- Select Member --</option>
+        </select>
+        <span asp-validation-for="MemberId" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label>Role</label>
+        <input asp-for="Role" class="form-control" placeholder="Enter Role" />
+        <span asp-validation-for="Role" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-success">Save</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
+
+ 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>

@@ -1,0 +1,34 @@
+﻿@model AttendanceCRM.Models.Entities.ProjectEntity
+
+@{
+    ViewData["Title"] = "Delete Project";
+}
+
+<h2>Delete Project</h2>
+
+<p>Are you sure you want to delete this project?</p>
+
+<table class="table">
+    <tr>
+        <th>Project Name</th>
+        <td>@Model.ProjectName</td>
+    </tr>
+    <tr>
+        <th>Client Name</th>
+        <td>@Model.ClientName</td>
+    </tr>
+    <tr>
+        <th>Start Date</th>
+        <td>@Model.StartDate.ToShortDateString()</td>
+    </tr>
+    <tr>
+        <th>Status</th>
+        <td>@Model.Status</td>
+    </tr>
+</table>
+
+<form asp-action="Delete">
+    <input type="hidden" asp-for="ProjectId" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

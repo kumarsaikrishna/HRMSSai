@@ -1,0 +1,59 @@
+﻿@model AttendanceCRM.Models.Entities.TaskEntity
+
+<h2>Edit Task</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="TaskId" />
+
+    <div class="form-group">
+        <label>Project</label>
+        <select asp-for="ProjectId" class="form-control" asp-items="ViewBag.Projects">
+            <option value="">-- Select Project --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Assigned To</label>
+        <select asp-for="AssignedTo" class="form-control" asp-items="ViewBag.Users">
+            <option value="">-- Select User --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Task Name</label>
+        <input asp-for="TaskName" class="form-control" />
+        <span asp-validation-for="TaskName" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label>Description</label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label>Status</label>
+        <select asp-for="Status" class="form-control">
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Time Spent (Hours)</label>
+        <input asp-for="TimeSpent" class="form-control" type="number" min="0" />
+    </div>
+
+    <div class="form-group">
+        <label>Sprint</label>
+        <select asp-for="SprintId" class="form-control" asp-items="ViewBag.Sprints">
+            <option value="">-- Select Sprint --</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-success">Update</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
+
+ 

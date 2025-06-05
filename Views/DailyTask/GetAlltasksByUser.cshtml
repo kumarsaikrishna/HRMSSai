@@ -1,0 +1,118 @@
+﻿@model List<AttendanceCRM.Models.Entities.WorkEntryViewModel>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+@* <script>
+    $(document).ready(function () {
+        $("#filterBtn").click(function () {
+            var userId = $("#userId").val();
+            var startDate = $("#startDate").val();
+            var endDate = $("#endDate").val();
+
+            $.ajax({
+                url: "/DailyTask/FilterTasks",
+                type: "GET", // Should be GET, not POST
+                data: { userId: userId, startDate: startDate, endDate: endDate },
+                success: function (data) {
+                    $("#taskSummaryContainer").html(data.taskSummary);
+                    $("#taskListContainer").html(data.taskList);
+                },
+                error: function () {
+                    alert("Failed to retrieve tasks.");
+                }
+            });
+        });
+    });
+
+
+</script> *@
+
+
+<script>
+    $(document).ready(function () {
+        $("#filterBtn").click(function () {
+            var userId = $("#userId").val();
+            var startDate = $("#startDate").val();
+            var endDate = $("#endDate").val();
+
+            $.ajax({
+                url: "/DailyTask/FilterTasks",
+                type: "GET",
+                data: { userId: userId, startDate: startDate, endDate: endDate },
+                success: function (data) {
+                    $("#taskSummaryContainer").html(data.taskSummary);
+                    $("#taskListContainer").html(data.taskList);
+                },
+                error: function () {
+                    alert("Failed to retrieve tasks.");
+                }
+            });
+        });
+
+        $("#downloadExcelBtn").click(function () {
+            var userId = $("#userId").val();
+            var startDate = $("#startDate").val();
+            var endDate = $("#endDate").val();
+            var url = `/DailyTask/ExportToExcel?userId=${userId}&startDate=${startDate}&endDate=${endDate}`;
+            window.location.href = url;
+        });
+    });
+</script>
+
+<!-- Filter Section -->
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="">
+            <div class="card">
+                <div class="card-header">
+                    <h4>📅 User Task List</h4>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="userId">Select User:</label>
+                        @Html.DropDownList("userId", ViewBag.Users as SelectList, "All Users", new { @class = "form-control" })
+                    </div>
+                    <div class="col-md-3">
+                        <label for="startDate">Select Date:</label>
+                        <input type="date" id="startDate" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label for="endDate">End Date (Optional):</label>
+                        <input type="date" id="endDate" class="form-control" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button id="filterBtn" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button id="downloadExcelBtn" class="btn btn-success">Download Excel</button>
+            </div>
+
+
+
+            <ul id="taskList" class="list-group mt-3"></ul>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card p-3 mb-4 shadow-sm">
+            
+            <div id="taskSummaryContainer">
+                @Html.Partial("_timestamp", Model)
+            </div>
+        </div>
+    </div>
+
+    <div id="taskListContainer">
+        @Html.Partial("_TaskListPartial", Model)
+    </div>
+
+
+
+
+
+

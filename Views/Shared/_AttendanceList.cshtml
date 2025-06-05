@@ -1,0 +1,41 @@
+﻿@model List<AttendanceCRM.Models.DTOS.AttendanceViewModel>
+
+
+<thead class="thead-light">
+    <tr>
+        <th>SNo</th>
+        <th>Employee Name</th>
+        <th>Date</th>
+        <th>Designation</th>
+        <th>Punch In</th>
+        <th>Punch Out</th>
+        <th>Late</th>
+        <th>Status</th>
+    </tr>
+</thead>
+<tbody id="attendanceBody">
+    @{
+        // Sort the model by user name alphabetically
+        var sortedModel = Model.OrderBy(x => x.UserName).ToList();
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var record in sortedModel)
+    {
+        <tr id="row-@record.UserId">
+                        <td>@(rCnt++)</td>
+                        <td>@record.UserName</td>
+                        <td>@(record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-")</td>
+                        <td>@record.Designation</td>
+                        <td>@record.PunchInTime?.ToString("hh:mm tt")</td>
+                        <td>@record.PunchOutTime?.ToString("hh:mm tt")</td>
+                        <td>
+                            @(record.GracePeriodTime >= 60
+                                ? (record.GracePeriodTime / 60) + " hr" + (record.GracePeriodTime >= 120 ? "s" : "")
+                                : record.GracePeriodTime + " mins")
+                        </td>
+                        <td>@(record.PunchInTime.HasValue ? "Present" : "Leave")</td>
+                    </tr>
+     }
+                
+</tbody>
+       

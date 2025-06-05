@@ -1,0 +1,141 @@
+﻿@model AttendanceCRM.Models.DTOS.UserMasterDTO
+@{
+	Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+
+<!-- Edit Employee -->
+<div class="col-xl-12 box-margin height-card">
+	<div class="card">
+		<div class="card-body">
+			<div class="modal-header">
+				<div class="d-flex align-items-center">
+					<h4 class="modal-title me-2">Edit Employee</h4>
+				</div>
+				@* <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+					<i class="ti ti-x"></i>
+				</button> *@
+			</div>
+			<form action="~/User/EditUser" method="post" enctype="multipart/form-data">
+				
+				@* <div class="contact-grids-tab">
+					<ul class="nav nav-underline" id="myTab2" role="tablist">
+						<li class="nav-item" role="presentation">
+							<button class="nav-link active" id="info-tab2" data-bs-toggle="tab" data-bs-target="#basic-info2" type="button" role="tab" aria-selected="true">Basic Information</button>
+						</li>
+						<li class="nav-item" role="presentation">
+							<button class="nav-link" id="address-tab2" data-bs-toggle="tab" data-bs-target="#address2" type="button" role="tab" aria-selected="false">Permissions</button>
+						</li>
+					</ul>
+				</div> *@
+				<div class="tab-content" id="myTabContent2">
+					<div class="tab-pane fade show active" id="basic-info2" role="tabpanel" aria-labelledby="info-tab2" tabindex="0">
+						<div class="modal-body pb-0 ">
+							<div class="row">
+								<div class="col-md-12">
+									<div class="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">
+										<div class="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames">
+										   <img src="@Url.Content("~/UploadedImages/" + Model.ProfilePicture)" class="img-fluid" style="width: 50px; height: 50px; border-radius: 50%;" >
+
+										</div>
+										<div class="form-group mb-3">
+											<input id="UserId" value="@Model.UserId" name="UserId" hidden>
+
+											<div class="form-group mb-3">
+												@Html.LabelFor(m => m.ProfilePicture, "Upload Profile Picture")
+												<input type="file"
+													   class="form-control"
+													   name="ProfileImgUploaded"
+													   id="ProfileImgUploaded" 
+													   accept=".png,.jpg,.jpeg" />
+											</div>
+
+										</div>
+
+										<div class="form-group col-md-3 mb-3">
+											<label for="EmployeeId" class="col-form-label">Employee ID</label>
+											<input type="text" class="form-control" id="EmployeeId" value="@Model.EmployeeId" name="EmployeeId" placeholder="Employee ID">
+										</div>
+								
+										<div class="form-group col-md-3 mb-3">
+											<label for="EmployeeId" class="col-form-label">Name</label>
+											<input type="text" class="form-control" id="UserName" value="@Model.UserName" name="UserName" placeholder="Enter Name">
+										</div>
+										<div class="form-group col-md-3 mb-3">
+											<label for="DateOfJoining" class="col-form-label">Date of Joining</label>
+											<input type="date" class="form-control" id="DateOfJoining"
+												   value="@Model.DateOfJoining?.ToString("yyyy-MM-dd")"
+												   name="DateOfJoining" placeholder="Enter Date Of Joining">
+										</div>
+
+								
+									
+										<div class="form-group col-md-3 mb-3">
+											<label for="DateOfBirth" class="col-form-label">Date of Birth</label>
+											<input type="date" class="form-control" id="DateOfBirth"
+												   value="@Model.DateOfBirth?.ToString("yyyy-MM-dd")"
+												   name="DateOfBirth">
+										</div>
+
+
+										<div class="form-group col-md-3 mb-3">
+											<label for="AadharNumber" class="col-form-label">Mobile Number</label>
+											<input type="text" class="form-control" id="MobileNumber" value="@Model.MobileNumber" name="MobileNumber" placeholder="Mobile Number">
+										</div>
+										<div class="form-group col-md-3 mb-3">
+											<label for="AadharNumber" class="col-form-label">Guardian Number </label>
+											<input type="text" class="form-control" id="GuardianNumber" value="@Model.GuardianNumber" name="GuardianNumber" placeholder="Guardian Number ">
+										</div>
+										<div class="form-group col-md-3 mb-3">
+											<label for="AadharNumber" class="col-form-label">College Name </label>
+											<input type="text" class="form-control" id="CollegeName" value="@Model.CollegeName" name="CollegeName" placeholder="College Name ">
+										</div>
+										<div class="form-group col-md-3 mb-3">
+											<label for="AadharNumber" class="col-form-label">Designation </label>
+											<input type="text" class="form-control" id="Designation" value="@Model.Designation" name="Designation" placeholder="Designation ">
+										</div>
+
+										<div class="form-group col-md-3 mb-3">
+											<label for="DepartmentId" class="col-form-label">Department</label>
+											@Html.DropDownList("DepartmentId", (SelectList)ViewBag.deptlist, "-- Select Department --", new { @class = "form-control", @id = "DepartmentId" })
+
+
+										</div>
+
+										<div class="form-group col-md-3 mb-3">
+											<label for="AadharNumber" class="col-form-label">Aadhar Number</label>
+											<input type="text" class="form-control" id="AdharNumber" value="@Model.AdharNumber" name="AdharNumber" placeholder="Aadhar Number">
+										</div>
+								
+							
+										<div class="form-group col-md-3 mb-3">
+											<label for="Address" class="col-form-label">Pan Number</label>
+											
+											<input type="text" class="form-control" id="PanNumber" value="@Model.PanNumber" name="PanNumber" placeholder="Pan Number">
+										</div>
+								
+										<div class="form-group col-md-3 mb-3">
+											<label for="Address" class="col-form-label">Address</label>
+										    <input type="text" class="form-control" id="Address" value="@Model.Address" name="Address" placeholder="Address">
+										</div>
+										
+									</div>
+							    </div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<a href="~/User/UserList" class="btn btn-danger">
+								
+								Cancel
+							</a>
+							<button type="submit" class="btn btn-primary">Save </button>
+						</div>
+					</div>
+
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<!-- /Edit Employee -->

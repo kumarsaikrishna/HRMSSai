@@ -1,0 +1,49 @@
+﻿@model List<AttendanceCRM.Models.DTOS.AttendanceDTO>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<!-- Breadcrumb -->
+
+<div class="card row d-flex p-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Employees Present Today</h5>
+        <div>
+            <a href="@Url.Action("AdminDash", "Home")" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<table class="table table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th>Punch-In Time</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Count > 0)
+        {
+            @foreach (var user in Model)
+            {
+                <tr>
+                    <td>@user.UserName</td>
+                    <td>@(user.PunchInTime?.ToString("HH:mm:ss"))</td>
+                    <td>
+                        <span class="badge bg-success">Present</span>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="3" class="text-center text-muted">No employees are present today.</td>
+            </tr>
+        }
+    </tbody>
+</table>
+

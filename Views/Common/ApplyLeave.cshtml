@@ -1,0 +1,181 @@
+﻿@model AttendanceCRM.Models.DTOS.LeavesDTO
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* Custom Styling */
+    .leave-form-container {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+        .leave-form-container h4 {
+            font-weight: 600;
+            color: #333;
+        }
+
+    .form-label {
+        font-weight: 500;
+        color: #444;
+    }
+
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        transition: all 0.3s ease-in-out;
+    }
+
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0px 0px 6px rgba(0, 123, 255, 0.2);
+        }
+
+    .btn-primary {
+        background: #007bff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        transition: all 0.3s ease-in-out;
+    }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+    .btn-outline-light {
+        color: #333;
+        border-color: #ccc;
+        padding: 10px 16px;
+        border-radius: 6px;
+        transition: all 0.3s ease-in-out;
+    }
+
+        .btn-outline-light:hover {
+            background: #f8f9fa;
+        }
+
+    .modal-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #ddd;
+    }
+
+    .input-group .form-control {
+        border-radius: 6px 0 0 6px;
+    }
+
+    .input-group .btn {
+        border-radius: 0 6px 6px 0;
+    }
+</style>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" role="dialog" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="successModalLabel">Success</h5>
+                <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="ti ti-x"></i>
+                </button>
+
+
+            </div>
+            <div class="modal-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="redirectButton">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        $("#leaveForm").submit(function (event) {
+            event.preventDefault(); // Prevent default form submission
+
+            $.ajax({
+                url: '@Url.Action("Leave", "Common")', // Change to your controller and action name
+                type: "POST",
+                data: $(this).serialize(),
+                success: function (response) {
+                    if (response.success) {
+                        $("#successModal .modal-body").text(response.message);
+                        $("#successModal").modal("show");
+
+                        $("#redirectButton").click(function () {
+                            window.location.href = '@Url.Action("Index", "Home")';
+                        });
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function () {
+                    alert("An error occurred. Please try again.");
+                }
+            });
+        });
+    });
+</script>
+
+<!-- Add Leave Form -->
+<div class="leave-form-container">
+    <div class="modal-header">
+        <h4 class="modal-title">Add Leave</h4>
+    </div>
+
+    <form action="~/Common/Leave" method="post" id="leaveForm">
+        <div class="modal-body">
+            <div class="row">
+                <!-- Leave Type -->
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Leave Type</label>
+                        @Html.DropDownList("LeaveTypeId", (SelectList)ViewBag.leavetypelist, "-- Select Leave Type --", new { @class = "form-control", @id = "LeaveTypeId" })
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Description <span class="text-danger">*</span></label>
+                        <input type="text" name="Description" class="form-control" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- From Date -->
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">From Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="FromDate" required min="@DateTime.Now.ToString("yyyy-MM-dd")">
+                    </div>
+                </div>
+
+                <!-- To Date -->
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">To Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="ToDate" required min="@DateTime.Now.ToString("yyyy-MM-dd")">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-light border me-2" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </form>
+</div>

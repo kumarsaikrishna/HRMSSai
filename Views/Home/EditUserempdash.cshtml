@@ -1,0 +1,153 @@
+﻿@model AttendanceCRM.Models.DTOS.UserMasterDTO
+@{
+	Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+	.bank-detail-field {
+		flex: 1 1 45%;
+		min-width: 300px;
+	}
+</style>
+
+
+
+<!-- Edit Employee -->
+<div class="col-xl-12 box-margin height-card">
+	<div class="card">
+		<div class="card-body">
+			<div class="modal-header">
+				<div class="d-flex align-items-center">
+					<h4 class="modal-title me-2">Edit Employee</h4>
+					
+				</div>
+				
+			</div>
+			<form action="~/Home/EditUserEmpdash" method="post" enctype="multipart/form-data">
+
+			
+				<div class="tab-content" id="myTabContent2">
+					<div class="tab-pane fade show active" id="basic-info2" role="tabpanel" aria-labelledby="info-tab2" tabindex="0">
+						<div class="modal-body pb-0 ">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="bg-light w-100 rounded p-3 mb-4">
+                                        <div class="row align-items-center mb-4">
+                                            <div class="col-auto">
+                                                <div class="avatar avatar-xxl rounded-circle border border-dashed text-dark d-flex align-items-center justify-content-center frames" style="width: 80px; height: 80px;">
+                                                    <img src="~/UploadedImages/@Model.ProfilePicture" class="img-fluid" style="width: 50px; height: 50px; border-radius: 50%;">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <input id="UserId" value="@Model.UserId" name="UserId" hidden />
+                                                <div class="form-group mb-2">
+                                                    @Html.LabelFor(m => m.ProfilePicture, "Upload Profile Picture")
+                                                    <input type="file" class="form-control" name="ProfileImgUploaded" id="ProfileImgUploaded" accept=".png,.jpg,.jpeg" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="form-group col-md-3">
+                                                <label for="EmployeeId" class="col-form-label">Employee ID</label>
+                                                <input type="text" class="form-control" id="EmployeeId" value="@Model.EmployeeId" name="EmployeeId" placeholder="Employee ID">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="UserName" class="col-form-label">Name</label>
+                                                <input type="text" class="form-control" id="UserName" value="@Model.UserName" name="UserName" placeholder="Enter Name">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="DateOfJoining" class="col-form-label">Date of Joining</label>
+                                                <input type="date" class="form-control" id="DateOfJoining" value="@Model.DateOfJoining?.ToString("yyyy-MM-dd")" name="DateOfJoining">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="DateOfBirth" class="col-form-label">Date of Birth</label>
+                                                <input type="date" class="form-control" id="DateOfBirth" value="@Model.DateOfBirth?.ToString("yyyy-MM-dd")" name="DateOfBirth">
+                                            </div>
+
+                                            <div class="form-group col-md-3">
+                                                <label for="MobileNumber" class="col-form-label">Mobile Number</label>
+                                                <input type="text" class="form-control" id="MobileNumber" value="@Model.MobileNumber" name="MobileNumber" placeholder="Mobile Number">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="GuardianNumber" class="col-form-label">Guardian Number</label>
+                                                <input type="text" class="form-control" id="GuardianNumber" value="@Model.GuardianNumber" name="GuardianNumber" placeholder="Guardian Number">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="CollegeName" class="col-form-label">College Name</label>
+                                                <input type="text" class="form-control" id="CollegeName" value="@Model.CollegeName" name="CollegeName" placeholder="College Name">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="Designation" class="col-form-label">Designation</label>
+                                                <input type="text" class="form-control" id="Designation" value="@Model.Designation" name="Designation" placeholder="Designation">
+                                            </div>
+
+                                            <div class="form-group col-md-3">
+                                                <label for="AdharNumber" class="col-form-label">Aadhar Number</label>
+                                                <input type="text" class="form-control" id="AdharNumber" value="@Model.AdharNumber" name="AdharNumber" placeholder="Aadhar Number">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="PanNumber" class="col-form-label">Pan Number</label>
+                                                <input type="text" class="form-control" id="PanNumber" value="@Model.PanNumber" name="PanNumber" placeholder="Pan Number">
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label for="Address" class="col-form-label">Address</label>
+                                                <input type="text" class="form-control" id="Address" value="@Model.Address" name="Address" placeholder="Address">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+							<h4 class="modal-title me-2">Bank Details</h4>
+							<div class="row">
+								<div class="d-flex flex-wrap w-100 bg-light rounded p-3 mb-4" style="gap: 20px;">
+									<div class="form-group bank-detail-field">
+										<label>Account Number</label>
+                                        <input type="text" name="BankDetails.AccountNumber" class="form-control" value="@Model.BankDetails?.AccountNumber" />
+									</div>
+									<div class="form-group bank-detail-field">
+										<label>IFSC Code</label>
+                                        <input type="text" name="BankDetails.IFSCNumber" class="form-control" value="@Model.BankDetails?.IFSCNumber" />
+									</div>
+									<div class="form-group bank-detail-field">
+										<label>Branch Name</label>
+                                        <input type="text" name="BankDetails.BranchName" class="form-control" value="@Model.BankDetails?.BranchName" />
+									</div>
+									<div class="form-group bank-detail-field">
+                                        <label for="AccountType">Account Type</label>
+                                        @Html.DropDownListFor(
+                                                 model => model.BankDetails.AccountType,
+                                                 new SelectList(new[] {
+                                        new { Value = "Current", Text = "Current" },
+                                        new { Value = "Savings", Text = "Savings" }
+                                        }, "Value", "Text", Model.BankDetails?.AccountType),
+                                                 "Select Account Type",
+                                                 new { @class = "form-control", required = "required" }
+                                                 )
+
+									</div>
+								</div>
+							</div>
+
+
+                            <input type="hidden" name="BankDetails.BankId" value="@Model.BankDetails?.BankId" />
+
+						</div>
+
+						<div class="modal-footer" style="gap:10px">
+							<a href="~/Home/Index" class="btn btn-danger mr-5">
+
+								Cancel
+							</a>
+							<button type="submit" class="btn btn-primary">Save </button>
+						</div>
+					</div>
+
+				</div>
+				
+			</form>
+		</div>
+	</div>
+</div>
+<!-- /Edit Employee -->

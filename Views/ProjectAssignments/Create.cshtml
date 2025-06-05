@@ -1,0 +1,24 @@
+﻿@model AttendanceCRM.Models.Entities.ProjectAssignment
+
+@{
+    var projectList = ViewData["Projects"] as List<AttendanceCRM.Models.Entities.ProjectEntity> ?? new List<AttendanceCRM.Models.Entities.ProjectEntity>();
+    var userList = ViewData["Users"] as List<AttendanceCRM.Models.Entities.UserMasterEntitie> ?? new List<AttendanceCRM.Models.Entities.UserMasterEntitie>();
+}
+
+<h2>Create Assignment</h2>
+<form asp-action="Create" method="post">
+    <div class="form-group">
+        <label for="ProjectId">Project</label>
+        <select asp-for="ProjectId" asp-items="@(new SelectList(projectList, "ProjectId", "ProjectName"))" class="form-control">
+            <option value="">-- Select Project --</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="TeamLeadId">Team Lead</label>
+        <select asp-for="TeamLeadId" asp-items="@(new SelectList(userList, "UserId", "UserName"))" class="form-control">
+            <option value="">-- Select Team Lead --</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-success">Create</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

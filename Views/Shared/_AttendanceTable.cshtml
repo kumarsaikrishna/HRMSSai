@@ -1,0 +1,19 @@
+﻿@model List<AttendanceCRM.Models.DTOS.AttendanceViewModel>
+
+@foreach (var record in Model)
+{
+    <tr>
+        <td>@record.UserId</td>
+        <td>@record.UserName</td>
+        <td>@(record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-")</td>
+        <td>@record.Designation</td>
+        <td>@record.PunchInTime?.ToString("hh:mm tt")</td>
+        <td>@record.PunchOutTime?.ToString("hh:mm tt")</td>
+        <td>
+            @(record.GracePeriodTime >= 60
+                ? (record.GracePeriodTime / 60) + " hr" + (record.GracePeriodTime >= 120 ? "s" : "")
+                : record.GracePeriodTime + " mins")
+        </td>
+        <td>@(record.PunchInTime.HasValue ? "Present" : "Leave")</td>
+    </tr>
+}

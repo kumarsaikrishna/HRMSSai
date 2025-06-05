@@ -1,0 +1,40 @@
+﻿@model AttendanceCRM.Models.Entities.TeamMemberEntity
+
+@{
+    ViewData["Title"] = "Edit Team Member";
+}
+
+<h2>Edit Team Member</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="TeamMemberId" />
+
+    <div class="form-group">
+        <label>Project</label>
+        <select asp-for="ProjectId" class="form-control" asp-items="@ViewData["Projects"] as SelectList">
+            <option value="">-- Select Project --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Team Lead</label>
+        <select asp-for="TeamLeadId" class="form-control" asp-items="@ViewData["Users"] as SelectList">
+            <option value="">-- Select Team Lead --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Member</label>
+        <select asp-for="MemberId" class="form-control" asp-items="@ViewData["Users"] as SelectList">
+            <option value="">-- Select Member --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Role</label>
+        <input asp-for="Role" class="form-control" placeholder="Enter Role" />
+    </div>
+
+    <button type="submit" class="btn btn-success">Update</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

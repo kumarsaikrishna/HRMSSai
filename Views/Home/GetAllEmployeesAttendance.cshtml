@@ -1,0 +1,220 @@
+@model List<AttendanceCRM.Models.DTOS.AttendanceViewModel>
+
+
+@{
+    int rCnt = 1;
+}
+
+
+<script>
+    // $(document).ready(function () {
+    //     // Enable/Disable date fields based on the selected filter
+    //     $("input[name='dateFilter']").change(function () {
+    //         if ($("#custom").is(":checked")) {
+    //             $("#startDate, #endDate").prop("disabled", false);
+    //         } else {
+    //             $("#startDate, #endDate").prop("disabled", true);
+    //         }
+    //     });
+
+
+    //     // $("#filterBtn").click(function () {
+    //     //     let filterType = $("input[name='dateFilter']:checked").val();
+    //     //     let startDate = $("#startDate").val();
+    //     //     let endDate = $("#endDate").val();
+
+    //     //     $.ajax({
+    //     //         url: "@Url.Action("FilterAttendance", "Home")",
+    //     //         type: "GET",
+    //     //         data: { filterType: filterType, startDate: startDate, endDate: endDate },
+    //     //         success: function (data) {
+    //     //             $("#attendanceBody").html(data);
+    //     //         },
+    //     //         error: function (xhr, status, error) {
+    //     //             console.log("Error: " + error);
+    //     //         }
+    //     //     });
+    //     // });
+    //     $("#filterBtn").click(function () {
+    //         let filterType = $("input[name='dateFilter']:checked").val();
+    //         let startDate = $("#startDate").val();
+    //         let endDate = $("#endDate").val();
+    //         let userId = $("#userId").val();
+
+    //         $.ajax({
+    //             url: "@Url.Action("FilterAttendance", "Home")",
+    //             type: "GET",
+    //             data: { filterType: filterType, startDate: startDate, endDate: endDate, userId: userId },
+    //             success: function (data) {
+    //                 $("#attendanceBody").html(data);
+    //             },
+    //             error: function (xhr, status, error) {
+    //                 console.log("Error: " + error);
+    //             }
+    //         });
+    //     });
+
+
+
+
+    // });
+          $(document).ready(function () {
+        $("input[name='dateFilter']").change(function () {
+            if ($("#custom").is(":checked")) {
+                $("#startDate, #endDate").prop("disabled", false);
+            } else {
+                $("#startDate, #endDate").prop("disabled", true);
+                filterAttendance(); 
+            }
+        });
+
+        
+        $("input[name='dateFilter']").change(filterAttendance);
+        $("#startDate, #endDate, #userId").change(filterAttendance);
+
+        function filterAttendance() {
+            let filterType = $("input[name='dateFilter']:checked").val();
+            let startDate = $("#startDate").val();
+            let endDate = $("#endDate").val();
+            let userId = $("#userId").val();
+
+            $.ajax({
+                url: "@Url.Action("FilterAttendance", "Home")",
+                type: "GET",
+                data: { filterType: filterType, startDate: startDate, endDate: endDate, userId: userId },
+                success: function (data) {
+                    $("#attendanceBody").html(data);
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error: " + error);
+                }
+            });
+        }
+
+        let today = new Date().toISOString().split('T')[0]; 
+        $("#daily").prop("checked", true);
+        $("#startDate").val(today);
+        $("#endDate").val(today);
+        filterAttendance(); 
+    });
+
+
+</script>
+<script>
+    function downloadExcel() {
+        var startDate = document.getElementById("startDate").value;
+        var endDate = document.getElementById("endDate").value;
+        var userId = document.getElementById("userId")?.value; // Optional
+
+        if (!startDate || !endDate) {
+            alert("Please select Start Date and End Date!");
+            return;
+        }
+
+        var url = "/Home/DownloadAttendanceReport?startDate=" + startDate + "&endDate=" + endDate;
+
+        if (userId) {
+            url += "&userId=" + userId;
+        }
+
+        window.location.href = url;
+    }
+</script>
+
+
+
+<div class="card">
+    <div class="card-header">
+        <h5>Attendance List</h5>
+        <hr />
+
+        <div class="row">
+            <div class="col-sm-6 d-flex align-items-center">
+                <label class="me-2">Filter By:</label>
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="dateFilter" id="daily" value="Daily" class="form-check-input" checked>
+                    <label for="daily" class="form-check-label">Daily</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="dateFilter" id="weekly" value="Weekly" class="form-check-input">
+                    <label for="weekly" class="form-check-label">Weekly</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="dateFilter" id="monthly" value="Monthly" class="form-check-input">
+                    <label for="monthly" class="form-check-label">Monthly</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="dateFilter" id="custom" value="Custom" class="form-check-input">
+                    <label for="custom" class="form-check-label">Custom</label>
+                </div>
+            </div>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col-sm-2">
+                @Html.DropDownList("userId", ViewBag.Users as SelectList, "Select User", new { @class = "form-control" })
+            </div>
+            <div class="col-sm-4 d-flex">
+
+                <input type="date" id="startDate" class="form-control me-2" disabled>
+                <input type="date" id="endDate" class="form-control me-2" disabled>
+
+              @*   <div class="col-sm-4">
+                    <button class="btn btn-primary" id="filterBtn">Apply</button>
+                </div> *@
+                
+                <div class="col-sm-0 d-flex justify-content-end">
+                    <button class="btn btn-primary text-nowrap" onclick="downloadExcel()">Download Excel</button>
+                </div>
+            </div>
+
+
+
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="card-body p-0">
+    <div class="table-responsive">
+        <table class="table" id="attendanceTable">
+            <thead class="thead-light">
+                <tr>
+                    <th>SNo</th>
+                    <th>Employee Name</th>
+                    <th>Date</th>
+                    <th>Designation</th>
+                    <th>Punch In</th>
+                    <th>Punch Out</th>
+                    <th>Late</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+       @*      <tbody id="attendanceBody">
+                @foreach (var record in Model)
+                {
+                    <tr>
+                        <td>@(rCnt++)</td>
+                        <td>@record.UserName</td>
+                        <td>@(record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-")</td>
+                        <td>@record.Designation</td>
+                        <td>@record.PunchInTime?.ToString("hh:mm tt")</td>
+                        <td>@record.PunchOutTime?.ToString("hh:mm tt")</td>
+                        <td>
+                            @(record.GracePeriodTime >= 60
+                                ? (record.GracePeriodTime / 60) + " hr" + (record.GracePeriodTime >= 120 ? "s" : "")
+                                : record.GracePeriodTime + " mins")
+                        </td>
+                        <td>@(record.PunchInTime.HasValue ? "Present" : "Leave")</td>
+                    </tr>
+                }
+            </tbody> *@
+            <tbody id="attendanceBody">
+                @Html.Partial("_AttendanceTable", Model)
+            </tbody>
+        </table>
+    </div>
+</div>
+

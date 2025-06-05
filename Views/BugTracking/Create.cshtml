@@ -1,0 +1,54 @@
+﻿@model  AttendanceCRM.Models.Entities.BugTracking
+
+<h2>Create Bug</h2>
+
+<form asp-action="Create">
+    <div class="form-group">
+        <label>Project</label>
+        <select asp-for="ProjectId" asp-items="@(new SelectList(ViewBag.Projects, "ProjectId", "ProjectName"))" class="form-control"></select>
+    </div>
+
+    <div class="form-group">
+        <label>Task</label>
+        <select asp-for="TaskId" asp-items="@(new SelectList(ViewBag.Tasks, "TaskId", "TaskName"))" class="form-control"></select>
+    </div>
+
+    <div class="form-group">
+        <label>Reported By</label>
+        <select asp-for="ReportedBy" asp-items="@(new SelectList(ViewBag.Users, "UserId", "UserName"))" class="form-control"></select>
+    </div>
+
+    <div class="form-group">
+        <label>Assigned To</label>
+        <select asp-for="AssignedTo" asp-items="@(new SelectList(ViewBag.Users, "UserId", "UserName"))" class="form-control">
+            <option value="">Unassigned</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Bug Description</label>
+        <textarea asp-for="BugDescription" class="form-control"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Priority</label>
+        <select asp-for="Priority" class="form-control">
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+            <option>Critical</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Status</label>
+        <select asp-for="Status" class="form-control">
+            <option>Open</option>
+            <option>In Progress</option>
+            <option>Resolved</option>
+            <option>Closed</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>

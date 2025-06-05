@@ -1,0 +1,52 @@
+﻿@model List<AttendanceCRM.Models.DTOS.UserMasterDTO>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    int rCnt = 1;
+}
+
+<div class="container mt-4">
+    <div class="card shadow-lg rounded border-0">
+        <div class="card-header d-flex justify-content-between align-items-center custom-header">
+            <a href="~/Home/AdminDash" class="btn btn-outline-primary btn-sm d-flex align-items-center">
+                <i class="bx bx-arrow-back me-1"></i> Back
+            </a>
+            <h3 class="mb-0 text-center flex-grow-1">🚀 Absent Employees Today</h3>
+            <div style="width: 88.02px;"></div> @* Empty div to balance flex space *@
+        </div>
+        <div class="card-body">
+            @if (Model.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="custom-table-header">
+                            <tr>
+                                <th style="width: 10%;">SNO</th>
+                                <th style="width: 45%;">User Name</th>
+                                <th style="width: 45%;">Designation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var employee in Model)
+                            {
+                                <tr>
+                                    <td>@(rCnt++)</td>
+                                    <td>@employee.UserName</td>
+                                    <td>@employee.Designation</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success text-center">
+                    <strong>🎉 No absent employees today!</strong>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">

@@ -1,0 +1,37 @@
+﻿ @model List<AttendanceCRM.Models.DTOS.LeavesDTO>
+
+<thead class="thead-light">
+    <tr>
+        <th>SNo</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Leave Type</th>
+        <th>From Date</th>
+        <th>To Date</th>
+        <th>Approved By</th>
+        <th>Status</th>
+        <th>Remarks</th>
+    </tr>
+</thead>
+<tbody>
+    @{
+        // Sort the model by user name alphabetically
+        var sortedModel = Model.OrderBy(x => x.UserName).ToList();
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var v in sortedModel)
+    {
+        <tr>
+            <td>@(rCnt++)</td>
+            <td>@ViewBag.username</td>
+            <td>@v.Description</td>
+            <td>@v.LeaveType</td>
+            <td>@v.FromDate</td>
+            <td>@v.ToDate</td>
+            <td>@v.Approve</td>
+            <td>@v.Status</td>
+            <td>@v.Remarks</td>
+
+        </tr>
+    }
+</tbody>

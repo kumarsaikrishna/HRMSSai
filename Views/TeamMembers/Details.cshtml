@@ -1,0 +1,19 @@
+﻿@model AttendanceCRM.Models.Entities.TeamMemberEntity
+
+@{
+    ViewData["Title"] = "Team Member Details";
+}
+
+<h2>Team Member Details</h2>
+
+<div class="card">
+    <div class="card-body">
+        <h5>Project: @Model.Project.ProjectName</h5>
+        <p><strong>Team Lead:</strong> @Model.TeamLead.UserName</p>
+        <p><strong>Member:</strong> @Model.Member.UserName</p>
+        <p><strong>Role:</strong> @Model.Role</p>
+        <p><strong>Assigned On:</strong> @Model.AssignedOn.ToShortDateString()</p>
+        <a asp-action="Edit" asp-route-id="@Model.TeamMemberId" class="btn btn-warning">Edit</a>
+        <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>

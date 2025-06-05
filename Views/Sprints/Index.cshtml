@@ -1,0 +1,39 @@
+﻿@model IEnumerable<AttendanceCRM.Models.Entities.SprintViewModel>
+
+@{
+    ViewData["Title"] = "Sprints List";
+}
+
+<h2>Sprints</h2>
+<a asp-action="Create" class="btn btn-primary mb-3">Create New Sprint</a>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Sprint Name</th>
+            <th>Project Name</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+     
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.SprintName</td>
+                <td>@item.ProjectName</td>
+                <td>@(item.StartDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                <td>@(item.EndDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                <td>@item.Status</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.SprintId" class="btn btn-warning btn-sm">Edit</a>
+                    <a asp-action="Details" asp-route-id="@item.SprintId" class="btn btn-info btn-sm">Details</a>
+                    <a asp-action="Delete" asp-route-id="@item.SprintId" class="btn btn-danger btn-sm">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

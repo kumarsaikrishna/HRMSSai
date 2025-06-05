@@ -1,0 +1,220 @@
+﻿@model List<AttendanceCRM.Models.DTOS.LeavesDTO>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Required Libraries -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Page Content -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Leave List</h5>
+        <div class="search-container">
+            <input type="text" id="filterInput" class="form-control" placeholder="Search By Name" />
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped" id="leaveTable">
+                <!-- Table will be populated by partial view -->
+                <partial name="_LeaveListTable" model="Model" />
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="pagination-info">
+                Showing @((ViewBag.CurrentPage - 1) * ViewBag.PageSize + 1) to
+                @(Math.Min(ViewBag.CurrentPage * ViewBag.PageSize, ViewBag.TotalItems)) of
+                @ViewBag.TotalItems entries
+            </div>
+           
+            <nav>
+                <ul class="pagination mb-0">
+                    @{
+                        int currentPage = ViewBag.CurrentPage;
+                        int totalPages = ViewBag.TotalPages;
+                        int startPage = Math.Max(1, currentPage - 2);
+                        int endPage = Math.Min(totalPages, startPage + 4); // Ensure only 5 pages are displayed
+                    }
+
+                    <!-- Previous Button -->
+                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("LeaveList", new { page = currentPage - 1, searchTerm = ViewBag.SearchTerm })">Previous</a>
+                    </li>
+
+                    <!-- Page Numbers -->
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == currentPage ? "active" : "")">
+                            <a class="page-link" href="@Url.Action("LeaveList", new { page = i, searchTerm = ViewBag.SearchTerm })">@i</a>
+                        </li>
+                    }
+
+                    <!-- Next Button -->
+                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("LeaveList", new { page = currentPage + 1, searchTerm = ViewBag.SearchTerm })">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .search-container {
+        width: 250px;
+    }
+
+    #filterInput {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0,0,0,.05);
+    }
+</style>
+
+<!-- JavaScript -->
+<script>
+    $(document).ready(function () {
+        // Debounce function to limit search frequency
+        function debounce(func, timeout = 300) {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => { func.apply(this, args); }, timeout);
+            };
+        }
+
+        // Search functionality
+        const performSearch = debounce(function() {
+            var searchTerm = $("#filterInput").val().trim();
+
+            $.ajax({
+                url: "@Url.Action("LeaveList", "Common")",
+                type: "GET",
+                data: {
+                    searchTerm: searchTerm,
+                    page: 1
+                },
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                success: function(result) {
+                    // Replace table body
+                    $("#leaveTable").html(result);
+
+                    // Reattach event handlers for dynamic content
+                    attachLeaveStatusHandlers();
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Search Error',
+                        text: 'Unable to perform search. Please try again.'
+                    });
+                }
+            });
+        });
+
+        // Attach search handler
+        $("#filterInput").on("input", performSearch);
+
+        // Function to attach leave status handlers
+        function attachLeaveStatusHandlers() {
+            $(document).on("click", ".accept-leave", function () {
+                var leaveId = $(this).data("id");
+                updateLeaveStatus(leaveId, "Accepted");
+            });
+
+            $(document).on("click", ".reject-leave", function () {
+                var leaveId = $(this).data("id");
+                updateLeaveStatus(leaveId, "Rejected");
+            });
+        }
+
+        // Initial attachment of handlers
+        attachLeaveStatusHandlers();
+
+        function updateLeaveStatus(leaveId, status) {
+            if (status === "Rejected") {
+                // Show Remarks Popup for Rejection
+                Swal.fire({
+                    title: "Enter Remarks",
+                    input: "textarea",
+                    inputLabel: "Reason for rejection",
+                    inputPlaceholder: "Type your remarks here...",
+                    inputAttributes: { required: true },
+                    showCancelButton: true,
+                    confirmButtonText: "Reject Leave",
+                    preConfirm: (remarks) => {
+                        if (!remarks) {
+                            Swal.showValidationMessage("Remarks are required");
+                        }
+                        return remarks;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        sendLeaveUpdate(leaveId, status, result.value);
+                    }
+                });
+            } else {
+                // Accept leave directly
+                Swal.fire({
+                    title: "Confirm Acceptance",
+                    text: "Are you sure you want to accept this leave?",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes, Accept",
+                    cancelButtonText: "Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        sendLeaveUpdate(leaveId, status, "");
+                    }
+                });
+            }
+        }
+
+        function sendLeaveUpdate(leaveId, status, remarks) {
+            $.ajax({
+                url: "/Common/UpdateLeaveStatus",
+                type: "POST",
+                data: { id: leaveId, status: status, remarks: remarks },
+                success: function (response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: "success",
+                            title: "Success",
+                            text: response.message || "Leave updated successfully",
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload(); // Auto-refresh after success
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Error",
+                            text: response.message || "Failed to update leave"
+                        });
+                    }
+                },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: "Something went wrong. Please try again later."
+                    });
+                }
+            });
+        }
+    });
+</script>

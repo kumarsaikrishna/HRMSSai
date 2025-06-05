@@ -1,0 +1,58 @@
+﻿@model List<AttendanceCRM.Models.DTOS.UserMasterDTO>
+
+<thead class="thead-light">
+    <tr>
+        <th>SNo</th> <!-- Hide this column -->
+        <th>Profile Picture</th>
+        <th>Employee ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Designation</th>
+        <th>Joining Date</th>
+        <th>Actions</th>
+    </tr>
+</thead>
+<tbody>
+    @{
+        // Sort the model by user name alphabetically
+        var sortedModel = Model.OrderBy(x => x.UserName).ToList();
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var v in sortedModel)
+    {
+        <tr>
+            <td>@(rCnt++)</td> <!-- Hide the UserId value -->
+            <td>
+                @if (!string.IsNullOrEmpty(v.ProfilePicture))
+                {
+                    <img src="@Url.Content("~/UploadedImages/" + v.ProfilePicture)" class="img-fluid rounded-circle" style="width: 50px; height: 50px;">
+                }
+                else
+                {
+                    <img src="@Url.Content("~/UploadedImages/dummy.png")" class="img-fluid rounded-circle" style="width: 50px; height: 50px;">
+                }
+            </td>
+            <td>@v.EmployeeId</td>
+            <td>@v.UserName</td>
+            <td>@v.Email</td>
+            <td>@v.MobileNumber</td>
+            <td>@v.Designation</td>
+            <td>@v.DateOfJoining</td>
+            <td>
+                <div>
+                    <a href="~/User/DeatilUser?userid=@v.UserId">
+                        <span class="badge badge-primary mr-1"><i class="bx bx-low-vision"></i></span>
+                    </a>
+                    <a href="~/User/EditUser?userid=@v.UserId">
+                        <span class="badge badge-primary mr-1"><i class="bx bx-edit"></i></span>
+                    </a>
+                    <a href="#" onclick="DeleteCat(@v.UserId, event)">
+                        <span class="badge badge-danger"><i class="bx bx-trash"></i></span>
+                    </a>
+
+                </div>
+            </td>
+        </tr>
+    }
+</tbody>

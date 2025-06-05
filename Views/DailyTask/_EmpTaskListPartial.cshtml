@@ -1,0 +1,20 @@
+﻿@model IEnumerable<AttendanceCRM.Models.Entities.WorkEntryViewModel>
+
+@foreach (var item in Model)
+{
+    <div class="col-md-4 task-item" data-date="@item.CreatedAt.ToString("yyyy-MM-dd")">
+        <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between mb-2">
+                <div>
+                    <p><strong>@item.ProjectName</strong></p>
+                    <p><strong>@item.TaskName</strong></p>
+                    <p>@item.Description</p>
+                    <p>⏳ Time spent: <span class="taskTime">@item.TimeSpent</span> minutes | Status: <span class="badge badge-secondary taskStatus">@item.Status</span></p>
+                </div>
+                <div>
+                    <button class="btn btn-danger btn-sm" onclick="DeleteCat(@item.Id, event)">❌</button>
+                </div>
+            </li>
+        </ul>
+    </div>
+}

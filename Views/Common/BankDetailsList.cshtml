@@ -1,0 +1,312 @@
+﻿@model List<AttendanceCRM.Models.DTOS.BankDetailsDTO>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+}
+
+
+<style>
+    .search-container {
+        width: 250px;
+    }
+
+    #filterInput {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0,0,0,.05);
+    }
+</style>
+
+<script>
+    $(document).ready(function () {
+        // Debounce function to limit search frequency
+        function debounce(func, timeout = 300) {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => { func.apply(this, args); }, timeout);
+            };
+        }
+
+        // Search functionality
+        const performSearch = debounce(function() {
+            var searchTerm = $("#filterInput").val().trim();
+
+            $.ajax({
+                url: "@Url.Action("BankDetailsList", "Common")",
+                type: "GET",
+                data: {
+                    searchTerm: searchTerm,
+                    page: 1
+                },
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                success: function(result) {
+                    // Replace table body correctly
+                      $("#leaveTable").html(result);
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Search Error',
+                        text: 'Unable to perform search. Please try again.'
+                    });
+                }
+            });
+        });
+
+        // Attach search handler
+        $("#filterInput").on("input", performSearch);
+
+    });
+</script>
+<script>
+   
+    $(document).on("click", ".delete-holiday", function () {
+        var id = $(this).data("id");
+        var row = $(this).closest("tr");
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Do you want to delete this holiday?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                      url: '/Common/DeleteBankDetails',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function (response) {
+                        if (response.success) {
+                            Swal.fire(
+                                'Deleted!',
+                                'Holiday has been deleted.',
+                                'success'
+                            );
+                            row.fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        } else {
+                            Swal.fire(
+                                'Failed!',
+                                'Something went wrong.',
+                                'error'
+                            );
+                        }
+                    }
+                });
+            }
+        });
+    
+
+
+    function populateEditModal(button) {
+        var bankId = $(button).data('bankid');
+        var userId = $(button).data('userid');
+        var accountNumber = $(button).data('accountnumber');
+        var ifscNumber = $(button).data('ifscnumber');
+        var branchName = $(button).data('branchname');
+        var accountType = $(button).data('accounttype');
+
+        $("#edit_bank #BankId").val(bankId);
+        $("#edit_bank #UserName").val(userId);
+        $("#edit_bank #AccountNumber").val(accountNumber);
+        $("#edit_bank #IFSCNumber").val(ifscNumber);
+        $("#edit_bank #BranchName").val(branchName);
+        $("#edit_bank #AccountType").val(accountType);
+    }
+
+   });
+</script>
+
+
+
+
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<!-- Breadcrumb -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="mb-1">Bank Details</h2>
+        <div class="col-md-4 d-flex align-items-end">
+            <a href="#" data-bs-toggle="modal" data-bs-target="#add_bank" class="btn btn-primary w-100">
+                <i class="ti ti-circle-plus me-2"></i>Add Bank Details
+            </a>
+        </div>
+    </div>
+   
+</div>
+
+
+<!-- Page Content -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Bank Details</h5>
+        <div class="search-container">
+            <input type="text" id="filterInput" class="form-control" placeholder="Search By Name" />
+        </div>
+       
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped" id="leaveTable">
+                <!-- Table will be populated by partial view -->
+                <partial name="_bankdetails" model="Model" />
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="pagination-info">
+                Showing @((ViewBag.CurrentPage - 1) * ViewBag.PageSize + 1) to
+                @(Math.Min(ViewBag.CurrentPage * ViewBag.PageSize, ViewBag.TotalItems)) of
+                @ViewBag.TotalItems entries
+            </div>
+
+            <nav>
+                <ul class="pagination mb-0">
+                    @{
+                        int currentPage = ViewBag.CurrentPage;
+                        int totalPages = ViewBag.TotalPages;
+                        int startPage = Math.Max(1, currentPage - 2);
+                        int endPage = Math.Min(totalPages, startPage + 4); // Ensure only 5 pages are displayed
+                    }
+
+                    <!-- Previous Button -->
+                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("BankDetailsList", new { page = currentPage - 1, searchTerm = ViewBag.SearchTerm })">Previous</a>
+                    </li>
+
+                    <!-- Page Numbers -->
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == currentPage ? "active" : "")">
+                            <a class="page-link" href="@Url.Action("BankDetailsList", new { page = i, searchTerm = ViewBag.SearchTerm })">@i</a>
+                        </li>
+                    }
+
+                    <!-- Next Button -->
+                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("BankDetailsList", new { page = currentPage + 1, searchTerm = ViewBag.SearchTerm })">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+<!-- Add Bank Modal -->
+<div class="modal fade" id="add_bank">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Add Bank Details</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="@Url.Action("AttenBankDetails", "Common")" method="post">
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="UserId" class="col-form-label">Select Employee Name</label>
+                        @Html.DropDownList("UserId", (SelectList)ViewBag.userlist, "-- Select Employee Name --", new { @class = "form-control", @id = "UserName" })
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="AccountNumber">Account Number</label>
+                        <input type="text" id="AccountNumber" name="AccountNumber" class="form-control" required
+                               pattern="\d{9,18}" title="Account number must be 9 to 18 digits long">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="IFSCNumber">IFSC Number</label>
+                        <input type="text" id="IFSCNumber" name="IFSCNumber" class="form-control" required
+                               pattern="^[A-Z]{4}0[A-Z0-9]{6}$" title="Enter a valid 11-character IFSC code">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="BranchName">BranchName</label>
+                        <input type="text" id="BranchName" name="BranchName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="AccountType">Account Type</label>
+                        <select id="AccountType" name="AccountType" class="form-control" required>
+                            <option value="" disabled selected>Select Account Type</option>
+                            <option value="Current">Current</option>
+                            <option value="Savings">Savings</option>
+                        </select>
+                    </div>
+
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- /Add Bank Modal -->
+<!-- edit Bank Modal -->
+<div class="modal fade" id="edit_bank">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Edit Bank Details</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="@Url.Action("AttenBankDetails", "Common")" method="post">
+                <input type="hidden" id="BankId" name="BankId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="UserId" class="col-form-label">Select Employee Name</label>
+                        @Html.DropDownList("UserId", (SelectList)ViewBag.userlist, "-- Select Employee Name --", new { @class = "form-control", @id = "UserName" })
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="AccountNumber">Account Number</label>
+                        <input type="text" id="AccountNumber" name="AccountNumber" class="form-control"  required
+                               pattern="\d{9,18}" title="Account number must be 9 to 18 digits long">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="IFSCNumber">IFSC Number</label>
+                        <input type="text" id="IFSCNumber" name="IFSCNumber" class="form-control" required
+                               pattern="^[A-Z]{4}0[A-Z0-9]{6}$" title="Enter a valid 11-character IFSC code">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="BranchName">BranchName</label>
+                        <input type="text" id="BranchName" name="BranchName" class="form-control"  required>
+                    </div>
+                    <div class="form-group">
+                        <label for="AccountType">Account Type</label>
+                        <select id="AccountType" name="AccountType" class="form-control" required>
+                            <option value="" disabled selected>Select Account Type</option>
+                            <option value="Current">Current</option>
+                            <option value="Savings">Savings</option>
+                        </select>
+                    </div>
+
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- /edit Bank Modal -->

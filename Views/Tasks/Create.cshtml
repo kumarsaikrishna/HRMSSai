@@ -1,0 +1,64 @@
+﻿@model AttendanceCRM.Models.Entities.TaskEntity
+
+<h2>Add Task</h2>
+
+<form asp-action="Create" method="post">
+    <div class="form-group">
+        <label>Project</label>
+        <select asp-for="ProjectId" class="form-control" asp-items="ViewBag.Projects">
+            <option value="">-- Select Project --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Assigned To</label>
+        <select asp-for="AssignedTo" class="form-control" asp-items="ViewBag.Users">
+            <option value="">-- Select User --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Assigned By</label>
+        <select asp-for="AssignedBy" class="form-control" asp-items="ViewBag.Users">
+            <option value="">-- Select User --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Task Name</label>
+        <input asp-for="TaskName" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label>Description</label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Time Spent (Hours)</label>
+        <input asp-for="TimeSpent" class="form-control" type="number" min="0" />
+    </div>
+
+    <div class="form-group">
+        <label>Status</label>
+        <select asp-for="Status" class="form-control">
+            <option value="">-- Select Status --</option>
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Sprint</label>
+        <select asp-for="SprintId" class="form-control" asp-items="ViewBag.Sprints">
+            <option value="">-- Select Sprint --</option>
+        </select>
+    </div>
+
+    <input type="hidden" asp-for="CreatedBy" value="@ViewBag.CurrentUserId" />
+    <input type="hidden" asp-for="CreatedOn" value="@DateTime.Now" />
+
+    <button type="submit" class="btn btn-success">Save</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

@@ -1,0 +1,27 @@
+﻿@model IEnumerable<AttendanceCRM.Models.Entities.SprintEntity>
+
+<h2>My Sprints</h2>
+<table class="table">
+    <tr>
+        <th>Title</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+    @foreach (var sprint in Model)
+    {
+        <tr>
+            <td>@sprint.SprintName</td>
+            <td>
+                <form asp-action="UpdateStatus" method="post">
+                    <input type="hidden" name="id" value="@sprint.SprintId" />
+                    <select name="newStatus" class="form-control">
+                        <option value="Planned" selected="@(sprint.Status == "Planned" ? "selected" : null)">Planned</option>
+                        <option value="In Progress" selected="@(sprint.Status == "In Progress" ? "selected" : null)">In Progress</option>
+                        <option value="Completed" selected="@(sprint.Status == "Completed" ? "selected" : null)">Completed</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                </form>
+            </td>
+        </tr>
+    }
+</table>

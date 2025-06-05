@@ -1,0 +1,77 @@
+﻿@model AttendanceCRM.Models.DTOS.HolidaysDTO
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+
+<!-- Edit Employee -->
+<div class="col-xl-12 box-margin height-card">
+    <div class="card">
+        <div class="card-body">
+            <div class="modal-header">
+                <div class="d-flex align-items-center">
+                    <h4 class="modal-title me-2">Edit Holiday</h4>
+                </div>
+
+            </div>
+            <form action="~/Common/EditHoliday" method="post">
+
+                <div class="tab-content" id="myTabContent2">
+                    <div class="tab-pane fade show active" id="basic-info2" role="tabpanel" aria-labelledby="info-tab2" tabindex="0">
+                        <div class="modal-body pb-0 ">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">
+                                        <input id="HolidayId" value="@Model.HolidayId" name="HolidayId" hidden>
+                                        <div class="form-group col-md-3 mb-3">
+                                            <label for="HolidayId" class="col-form-label">Holiday Date</label>
+                                            <input type="date" class="form-control" id="HolidayDate"
+                                                   value="@(Model?.HolidayDate?.ToString("yyyy-MM-dd") ?? "")"
+                                                   name="HolidayDate" placeholder="Holiday Date">
+                                        </div>
+
+                                        <div class="form-group col-md-3 mb-3">
+                                            <label for="HolidayId" class="col-form-label">Holiday Name</label>
+                                            <input type="text" class="form-control" id="HolidayName" value="@Model.HolidayName" name="HolidayName" placeholder="Holiday Name">
+                                        </div>
+                                        <div class="form-group col-md-3 mb-3">
+                                            <label for="HolidayId" class="col-form-label">Description</label>
+                                            <input type="text" class="form-control" id="HolidayDescription" value="@Model.HolidayDescription" name="HolidayDescription" placeholder="Description">
+                                        </div>
+
+                                        <div class="form-group col-md-3 mb-3">
+                                            <label for="HolidayId" class="col-form-label">Role</label>
+                                            @if (ViewBag.Type != null && ((IEnumerable<dynamic>)ViewBag.Type).Any())
+                                            {
+                                                @Html.DropDownListFor(x => x.UserTypeId,
+                                                         new SelectList(ViewBag.Type, "UserTypeId", "UserTypeName", Model.UserTypeId),
+                                                         "Select a value",
+                                                         new { @class = "form-control" })
+                                            }
+                                            else
+                                            {
+                                                <p class="text-danger">No user types available</p>
+                                            }
+                                        </div>
+
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <a href="~/Common/HolidaysList" class="btn btn-danger">
+
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">Save </button>
+                        </div>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- /Edit Employee -->

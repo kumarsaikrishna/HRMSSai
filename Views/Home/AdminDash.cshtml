@@ -1,0 +1,415 @@
+﻿ @using AttendanceCRM.Models.Entities
+ @model AttendanceCRM.Models.DTOS.AdminDashboardViewModel
+
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+
+
+<div class="welcome-wrap mb-4">
+    <div class=" d-flex align-items-center justify-content-between flex-wrap">
+        <div class="mb-3">
+            <h2 class="mb-1 text-white">Welcome Back, @ViewBag.username <a href="javascript:void(0);"></a></h2>
+            <p class="text-white">Welcome to Guardians</p>
+        </div>
+        <div class="d-flex align-items-center flex-wrap mb-1">
+            <a href="~/Home/ProjectList" class="btn btn-dark btn-md me-2 mb-2">Projects</a>
+           @*  <a href="https://smarthr.dreamstechnologies.com/html/template/packages.html" class="btn btn-light btn-md mb-2">All Packages</a> *@
+        </div>
+    </div>
+    <div class="welcome-bg">
+        <img src="https://smarthr.dreamstechnologies.com/html/template/assets/img/bg/welcome-bg-02.svg" alt="img" class="welcome-bg-01">
+        <img src="https://smarthr.dreamstechnologies.com/html/template/assets/img/bg/welcome-bg-03.svg" alt="img" class="welcome-bg-02">
+        <img src="https://smarthr.dreamstechnologies.com/html/template/assets/img/bg/welcome-bg-01.svg" alt="img" class="welcome-bg-03">
+    </div>
+</div>
+
+<div class="row">
+
+    <!-- Total Employees -->
+    <div class="col-xl-3 col-sm-6 d-flex">
+        <a href="@Url.Action("UserListadmin", "User")" class="card flex-fill text-decoration-none text-dark">
+            <!-- Link to Employee List -->
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="avatar avatar-md bg-dark mb-3">
+                        <i class="ti ti-building fs-16"></i>
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h2 class="mb-1">@Model.TotalEmployees</h2> <!-- Display total employees -->
+                        <p class="fs-13">Total Employees</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <!-- /Total Employees -->
+   
+    <!-- Leave Today -->
+    <div class="col-xl-3 col-sm-6 d-flex">
+        <a href="@Url.Action("LeaveList", "Home")" class="card flex-fill text-decoration-none text-dark">
+     
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="avatar avatar-md bg-dark mb-3">
+                        <i class="ti ti-carousel-vertical fs-16"></i>
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+
+                        <h2 class="mb-1">@Model.Todayabsent</h2> <!-- Display number of people on leave today -->
+                        <p class="fs-13">Today Absent</p>
+
+                        
+
+                    </div>
+                </div>
+            </div>
+       </a>
+    </div>
+    <!-- /Leave Today -->
+    <!-- Present Employees -->
+    <div class="col-xl-3 col-sm-6 d-flex">
+        <a href="@Url.Action("PresentToday", "Home")" class="card flex-fill text-decoration-none text-dark">
+
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="avatar avatar-md bg-dark mb-3">
+                        <i class="ti ti-chalkboard-off fs-16"></i>
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h2 class="mb-1">@Model.PresentEmployees</h2> <!-- Display number of present employees -->
+                        <p class="fs-13">Today Present</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <!-- /Present Employees -->
+    <!-- Current Projects -->
+    <div class="col-xl-3 col-sm-6 d-flex">
+      <a href="@Url.Action("ProjectList", "Home")" class="card flex-fill text-decoration-none text-dark">
+       
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="avatar avatar-md bg-dark mb-3">
+                        <i class="ti ti-businessplan fs-16"></i>
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h2 class="mb-1">@Model.CurrentProjects</h2> <!-- Display current projects -->
+                        <p class="fs-13">Current Projects</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <!-- /Current Projects -->
+  
+
+</div>
+
+
+
+<!-- /Breadcrumb -->
+
+<div class="alert bg-secondary-transparent alert-dismissible fade show mb-4">
+    @if (ViewBag.Notifications != null && ((List<NotificationEntity>)ViewBag.Notifications).Count > 0)
+    {
+      
+        <ul id="notification-list">
+            @foreach (var notification in ViewBag.Notifications)
+            {
+                <li id="notification-@notification.Id" class="notification-item" data-id="@notification.Id">
+                    <a href="~/Common/LeaveList?id=@notification.UserId" class="link-default">
+                    @notification.Message
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="text-muted">No new notifications.</p>
+    }
+    <button type="button" class="btn-close fs-14" data-bs-dismiss="alert" aria-label="Close"><i class="ti ti-x"></i></button>
+</div>
+
+
+
+<div class="row">
+    <!-- Widget Info -->
+    <div class="col-xxl-4 d-flex">
+        <div class="card flex-fill">
+            <div class="card-body">
+                <span class="avatar rounded-circle bg-primary mb-2">
+                    <i class="ti ti-calendar-share fs-16"></i>
+                </span>
+                <h6 class="fs-13 fw-medium text-default mb-1">Attendance Overview</h6>
+                <h3 class="mb-3">
+                    @Model.PresentEmployees/@Model.TotalEmployees
+                    <span class="fs-12 fw-medium text-success">
+                        <i class="fa-solid fa-caret-up me-1"></i>
+                        @Model.PercentageChange.ToString("F1")%
+                    </span>
+                </h3>
+                <a href="~/Home/GetAllEmployeesAttendance" class="link-default">View Details</a>
+            </div>
+        </div>
+
+    </div>
+    <div class="col-xxl-4 d-flex">
+        <div class="card flex-fill">
+            <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                <h5 class="mb-2">Employee Status</h5>
+
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <p class="fs-13 mb-3">Total Employees</p>
+                    <h3 class="mb-3">@Model.TotalEmployees</h3>
+                </div>
+                <div class="progress-stacked emp-stack mb-3">
+                    <!-- FullTime Progress Bar -->
+                    <div class="progress" role="progressbar" aria-label="Full-Time Employees" aria-valuenow="@Model.EmployeeStatus.FullTimeCount" aria-valuemin="0" aria-valuemax="100" style="width: @Model.EmployeeStatus.FullTimePercentage%">
+                        <div class="progress-bar bg-warning"></div>
+                    </div>
+
+
+
+                    <!-- Contract Progress Bar -->
+                    <div class="progress" role="progressbar" aria-label="Contract Employees" aria-valuenow="@Model.EmployeeStatus.ContractCount" aria-valuemin="0" aria-valuemax="100" style="width: @Model.EmployeeStatus.ContractPercentage%">
+                        <div class="progress-bar bg-secondary"></div>
+                    </div>
+
+                    <!-- Probation Progress Bar -->
+                    <div class="progress" role="progressbar" aria-label="Probation Employees" aria-valuenow="@Model.EmployeeStatus.ProbationCount" aria-valuemin="0" aria-valuemax="100" style="width: @Model.EmployeeStatus.ProbationPercentage%">
+                        <div class="progress-bar bg-danger"></div>
+                    </div>
+
+                    <!-- WFH Progress Bar -->
+                    <div class="progress" role="progressbar" aria-label="Work-From-Home Employees" aria-valuenow="@Model.EmployeeStatus.WFHCount" aria-valuemin="0" aria-valuemax="100" style="width: @Model.EmployeeStatus.WFHPercentage%">
+                        <div class="progress-bar bg-pink"></div>
+                    </div>
+                </div>
+
+                <div class="border mb-3">
+                    <div class="row gx-0">
+                        <div class="col-6">
+                            <div class="p-2 flex-fill border-end border-bottom">
+
+                                <p class="fs-13 mb-2"><i class="ti ti-square-filled text-primary fs-12 me-2"></i>Fulltime <span class="text-gray-9">(@Model.EmployeeStatus.FullTimePercentage%)</span></p>
+                                <h2 class="display-1">@Model.EmployeeStatus.FullTimeCount</h2>
+
+@*                                 <p class="fs-13 mb-2"><i class="ti ti-square-filled text-primary fs-12 me-2"></i>Fulltime <span class="text-gray-9">(48%)</span></p>
+ *@                                <h2 class="display-1">@ViewBag.Fulltime</h2>
+
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 flex-fill border-bottom text-end">
+
+                                <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-secondary fs-12"></i>Contract <span class="text-gray-9">(@Model.EmployeeStatus.ContractPercentage%)</span></p>
+                                <h2 class="display-1">@Model.EmployeeStatus.ContractCount</h2>
+
+                              @*   <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-secondary fs-12"></i>Contract <span class="text-gray-9">(20%)</span></p> *@
+                                <h2 class="display-1">@ViewBag.Contract</h2>
+
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 flex-fill border-end">
+
+                                <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-danger fs-12"></i>Probation <span class="text-gray-9">(@Model.EmployeeStatus.ProbationPercentage%)</span></p>
+                                <h2 class="display-1">@Model.EmployeeStatus.ProbationCount</h2>
+
+                            @*     <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-danger fs-12"></i>Probation <span class="text-gray-9">(22%)</span></p> *@
+                                <h2 class="display-1">@ViewBag.Probation</h2>
+
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 flex-fill text-end">
+
+                                <p class="fs-13 mb-2"><i class="ti ti-square-filled text-pink me-2 fs-12"></i>WFH <span class="text-gray-9">(@Model.EmployeeStatus.WFHPercentage%)</span></p>
+                                <h2 class="display-1">@Model.EmployeeStatus.WFHCount</h2>
+
+@*                                 <p class="fs-13 mb-2"><i class="ti ti-square-filled text-pink me-2 fs-12"></i>WFH <span class="text-gray-9">(20%)</span></p>
+ *@                                <h2 class="display-1">@ViewBag.WFH</h2>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="mb-2">Top Performer</h6>
+
+                @if (Model.EmployeeStatus?.TopPerformer != null)
+                {
+                    <a href="@Url.Action("TopEmployeeDetails", "Home", new { userId = Model.EmployeeStatus.TopPerformer.userid })" class="text-decoration-none">
+                        <div class="p-2 d-flex align-items-center justify-content-between border border-primary bg-primary-100 br-5 mb-4 position-relative" style="cursor: pointer;">
+                            <div class="d-flex align-items-center overflow-hidden">
+                                <span class="me-2">
+                                    <i class="ti ti-award-filled text-primary fs-24"></i>
+                                </span>
+
+                                <img src="@Url.Content("~/UploadedImages/" + (string.IsNullOrEmpty(Model.EmployeeStatus.TopPerformer.ProfilePicture) ? "default-profile.png" : Model.EmployeeStatus.TopPerformer.ProfilePicture))"
+                                     class="rounded-circle border border-white"
+                                     style="width: 50px; height: 50px; border-radius: 50%;"
+                                     alt="Top Performer">
+
+                                <div>
+                                    <h6 class="text-truncate mb-1 fs-14 fw-medium text-primary">
+                                        @Model.EmployeeStatus.TopPerformer.Name
+                                    </h6>
+                                    <p class="fs-13">@Model.EmployeeStatus.TopPerformer.Role</p>
+                                </div>
+                            </div>
+
+                            <div class="text-end">
+                                <p class="fs-13 mb-1">Performance</p>
+                                <h5 class="text-primary">@Model.EmployeeStatus.TopPerformer.Performance%</h5>
+                            </div>
+                        </div>
+                    </a>
+                }
+                else
+                {
+                    <div class="p-2 d-flex align-items-center justify-content-between border border-secondary bg-light br-5 mb-4">
+                        <p class="mb-0 text-muted">No Top Performer Data Available</p>
+                    </div>
+                }
+
+
+
+                <a href="~/User/UserList" class="btn btn-light btn-md w-100">View All Employees</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- /Total Employee -->
+    <!-- /Widget Info -->
+    <!-- Employees By Department -->
+    <div class="col-xxl-4 d-flex">
+        <div class="card flex-fill">
+            <div class="card-header d-flex justify-content-between">
+                <h5>Employees By Department</h5>
+                <div class="dropdown">
+                    <a href="javascript:void(0);" class="btn btn-white border btn-sm d-inline-flex align-items-center" data-bs-toggle="dropdown">
+                        <i class="ti ti-calendar me-1"></i>This Week
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end p-3">
+                        <li><a href="javascript:void(0);" class="dropdown-item rounded-1">This Month</a></li>
+                        <li><a href="javascript:void(0);" class="dropdown-item rounded-1">This Week</a></li>
+                        <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Last Week</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="emp-department"></div>
+                <p class="fs-13">
+                    <i class="ti ti-circle-filled me-2 fs-8 text-primary"></i>
+                    No of Employees increased by <span class="text-success fw-bold">+20%</span> from last Week
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- /Employees By Department -->
+    <!-- Total Employee -->
+
+
+</div>
+
+<script>
+        // Employee Department
+
+
+    $(document).ready(function () {
+        var chart; // Global variable to store the chart instance
+
+        function loadEmployeeDepartmentData(duration = "This Week") {
+            console.log("🔄 Fetching data for:", duration); // Debugging log
+
+            $.ajax({
+                url: '/Home/GetEmployeesByDepartment',
+                type: 'GET',
+                data: { duration: duration },
+                success: function (data) {
+                    console.log("✅ Data received:", data); // Debugging log
+
+                    // Ensure data is an array
+                    var dataArray = Array.isArray(data) ? data : [data];
+
+                    if (dataArray.length === 0 || dataArray.every(d => !d.Department)) {
+                        console.warn("⚠️ No valid department data received.");
+                        return;
+                    }
+
+                    var categories = dataArray.map(d => d.Department || "Unknown");
+                    var seriesData = dataArray.map(d => d.Count || 0);
+
+                    console.log("📊 Categories:", categories);
+                    console.log("📈 Series Data:", seriesData);
+
+                    var options = {
+                        chart: {
+                            height: 220,
+                            type: 'bar',
+                            toolbar: { show: false }
+                        },
+                        colors: ['#FF6F28'],
+                        grid: { borderColor: '#E5E7EB', strokeDashArray: 5 },
+                        plotOptions: {
+                            bar: { borderRadius: 5, horizontal: true, barHeight: '35%' }
+                        },
+                        dataLabels: { enabled: false },
+                        series: [{ data: seriesData, name: 'Employees' }],
+                        xaxis: {
+                            categories: categories,
+                            labels: {
+                                style: {
+                                    colors: '#111827',
+                                    fontSize: '13px',
+                                }
+                            }
+                        }
+                    };
+
+                    // Destroy old chart if it exists
+                    if (chart) {
+                        chart.destroy();
+                    }
+
+                    // Create new chart
+                    chart = new ApexCharts(document.querySelector("#emp-department"), options);
+                    chart.render();
+                },
+                error: function (xhr, status, error) {
+                    console.error("❌ AJAX Error:", error);
+                }
+            });
+        }
+
+        // Load initial data dynamically
+        loadEmployeeDepartmentData();
+
+        // Handle dropdown change
+        $('.dropdown-menu .dropdown-item').click(function () {
+            var selectedDuration = $(this).text();
+            $('.btn-white.border').html(`<i class="ti ti-calendar me-1"></i> ${selectedDuration}`);
+            loadEmployeeDepartmentData(selectedDuration);
+        });
+    });
+
+
+</script>

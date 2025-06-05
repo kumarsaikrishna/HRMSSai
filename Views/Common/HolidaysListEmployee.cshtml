@@ -1,0 +1,167 @@
+﻿@model List<AttendanceCRM.Models.DTOS.HolidaysDTO>
+
+@{
+    int rCnt = 1;
+}
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* Optional: Add more specific styling if needed */
+    .input-group {
+        display: flex; /* Ensure elements are side by side */
+    }
+
+        .input-group .form-control {
+            flex-grow: 1; /* Allow the input to take up available space */
+            border-radius: 4px 0 0 4px; /* Rounded corners on the left */
+        }
+
+        .input-group .btn {
+            border-radius: 0 4px 4px 0; /* Rounded corners on the right */
+        }
+
+    /* Style the file input - this is tricky to fully customize */
+    #fileUpload {
+        padding: 6px 12px; /* Adjust padding as needed */
+    }
+
+</style>
+<script>
+    function DeleteCat(id) {
+        Swal.fire({
+            title: "Are you sure?",
+            text: "Do You Want Delete Holiday!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonClass: "btn btn-danger",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: GlobalUrll + "Common/DeleteHoliday",
+                    type: 'post',
+                    data: { id: id },
+                    success: function (result) {
+                        Swal.fire(
+                            "Deleted!",
+                            "Holiday has been deleted.",
+                            "success"
+                        ).then(() => {
+                            // Reload the page after confirmation
+                            window.location.reload();
+                        });
+                    },
+                    error: function () {
+                        Swal.fire(
+                            "Error!",
+                            "There was an issue deleting the Holiday.",
+                            "error"
+                        );
+                    }
+                });
+            }
+        });
+    }
+
+
+    function DeleteCat(id) {
+        Swal.fire({
+            title: "Are you sure?",
+            text: "Do you want to delete this user?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonClass: "btn btn-danger",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // AJAX call to the server to delete the user
+                $.ajax({
+                    url: '/Common/DeleteHoliday', // Ensure this matches your route
+                    type: 'POST',
+                    contentType: "application/json",
+                    data: JSON.stringify(id), // Send the id as a plain value
+                    success: function (response) {
+                        if (response.statuCode === 200) { // Success
+                            Swal.fire(
+                                "Deleted!",
+                                response.message || "The user has been deleted.",
+                                "success"
+                            ).then(() => {
+                                // Reload the page to reflect changes
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire(
+                                "Error!",
+                                response.message || "Failed to delete the user.",
+                                "error"
+                            );
+                        }
+                    },
+                    error: function () {
+                        Swal.fire(
+                            "Error!",
+                            "There was an issue deleting the user.",
+                            "error"
+                        );
+                    }
+                });
+            }
+        });
+    }
+</script>
+
+
+
+
+
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+
+<!-- Holiday List -->
+<div class="card">
+    <div class="card-header">
+        <h5>Holiday List</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table">
+                <thead class="thead-light">
+                    <tr>
+                        <th>SNo</th>
+                        <th>Holiday Date</th>
+                        <th>Holiday Name</th>
+                        <th>Description</th>
+                        <th>CreatedBy</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var v in Model)
+                    {
+                        <tr>
+                            <td>
+                                @(rCnt++)
+                            </td>
+                            <td>@v.HolidayDate</td>
+
+                            <td>@v.HolidayName</td>
+                            <td>@v.HolidayDescription</td>
+                            <td>@v.UserTypeName</td>
+
+                            <td> @v.IsActive</td>
+
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+

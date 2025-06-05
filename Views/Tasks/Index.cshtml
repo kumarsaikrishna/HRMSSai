@@ -1,0 +1,33 @@
+﻿@model IEnumerable<AttendanceCRM.Models.Entities.TaskViewModel>
+
+<h2>Task List</h2>
+<a asp-action="Create" class="btn btn-primary">Add Task</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Task Name</th>
+            <th>Project</th>
+            <th>Assigned To</th>
+            <th>Assigned By</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.TaskName</td>
+                <td>@item.ProjectName</td>
+                <td>@item.AssignedToUser</td>
+                <td>@item.AssignedByUser</td>
+                <td>@item.Status</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.TaskId" class="btn btn-warning">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@item.TaskId" class="btn btn-danger">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

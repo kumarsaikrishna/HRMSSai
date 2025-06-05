@@ -1,0 +1,39 @@
+﻿@model IEnumerable<AttendanceCRM.Models.Entities.BugViewModel>
+
+<h2>Bug Tracking List</h2>
+<a asp-action="Create" class="btn btn-primary">Create New Bug</a>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Project</th>
+            <th>Task</th>
+            <th>Reported By</th>
+            <th>Assigned To</th>
+            <th>Description</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Created On</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var bug in Model)
+        {
+            <tr>
+                <td>@bug.ProjectName</td>
+                <td>@bug.TaskName</td>
+                <td>@bug.ReportedBy</td>
+                <td>@bug.AssignedTo</td>
+                <td>@bug.BugDescription</td>
+                <td>@bug.Priority</td>
+                <td>@bug.Status</td>
+                <td>@bug.CreatedOn.ToShortDateString()</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@bug.BugId" class="btn btn-warning btn-sm">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@bug.BugId" class="btn btn-danger btn-sm">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

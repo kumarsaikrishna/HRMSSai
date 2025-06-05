@@ -1,0 +1,41 @@
+﻿@model IEnumerable<AttendanceCRM.Models.Entities.TeamMemberEntity>
+
+@{
+    ViewData["Title"] = "Team Members";
+}
+
+<h2>Team Members</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Add New Member</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Project Name</th>
+            <th>Team Lead</th>
+            <th>Member</th>
+            <th>Role</th>
+            <th>Assigned On</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Project.ProjectName</td>
+                <td>@item.TeamLead.UserName</td>
+                <td>@item.Member.UserName</td>
+                <td>@item.Role</td>
+                <td>@item.AssignedOn.ToShortDateString()</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.TeamMemberId" class="btn btn-warning btn-sm">Edit</a>
+                    <a asp-action="Details" asp-route-id="@item.TeamMemberId" class="btn btn-info btn-sm">Details</a>
+                    <a asp-action="Delete" asp-route-id="@item.TeamMemberId" class="btn btn-danger btn-sm">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

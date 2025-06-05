@@ -1,0 +1,61 @@
+﻿@model List<AttendanceCRM.Models.DTOS.BankDetailsDTO>
+
+<thead class="thead-light">
+    <tr>
+        <th>SNO</th> <!-- Hide this column -->
+        <th>Employee Name</th>
+        <th>Account Number</th>
+        <th>IFSC Code</th>
+        <th>Branch Name</th>
+        <th>Account Type</th>
+        
+        <th>Actions</th>
+    </tr>
+</thead>
+
+<tbody>
+
+    @{
+        // Sort the model by user name alphabetically
+        var sortedModel = Model.OrderBy(x => x.UserName).ToList();
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var v in sortedModel)
+    {
+        <tr id="row-@v.UserId">
+            <td>@(rCnt++)</td> <!-- Hide the UserId value -->
+          
+           
+            <td>@v.UserName</td>
+            <td>@v.AccountNumber</td>
+            <td>@v.IFSCNumber</td>
+            <td>@v.BranchName</td>
+            <td>@v.AccountType</td>
+            <td>
+                <div>
+
+                  @*   <a href="~/Common/AttenBankDetails?bankId=@v.BankId" data-bs-toggle="modal" data-bs-target="#edit_bank">
+                        <span class="badge badge-primary mr-1"><i class="bx bx-edit"></i></span>
+                    </a> *@
+                    <button class="btn btn-sm btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#edit_bank"
+                            data-bankid="@v.BankId"
+                            data-userid="@v.UserId"
+                            data-accountnumber="@v.AccountNumber"
+                            data-ifscnumber="@v.IFSCNumber"
+                            data-branchname="@v.BranchName"
+                            data-accounttype="@v.AccountType"
+                            onclick="populateEditModal(this)">
+                        <i class="bx bx-edit"></i> 
+                    </button>
+
+
+                    <button class="btn btn-sm btn-danger delete-holiday" data-id="@v.BankId" title="Delete">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    }
+</tbody>

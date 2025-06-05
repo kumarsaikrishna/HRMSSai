@@ -1,0 +1,52 @@
+﻿
+
+@model List<AttendanceCRM.Models.DTOS.HolidaysDTO>
+
+<thead class="thead-light">
+    <tr>
+        <th>SNo</th>
+        <th>Holiday Date</th>
+        <th>Holiday Name</th>
+        <th>Description</th>
+        <th>CreatedBy</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+</thead>
+
+<tbody>
+
+    @{
+        // Sort the model by user name alphabetically
+        var sortedModel = Model.OrderBy(x => x.HolidayDate).ToList();
+        int rCnt = ((ViewBag.CurrentPage - 1) * ViewBag.PageSize) + 1;
+    }
+    @foreach (var v in sortedModel)
+    {
+        <tr>
+            <td>@(rCnt++)</td>
+            <td>@(v.HolidayDate?.ToString("yyyy-MM-dd"))</td>
+            <td>@v.HolidayName</td>
+            <td>@v.HolidayDescription</td>
+            <td>@v.UserTypeName</td>
+            <td>
+                @{
+                    bool isUpcoming = v.HolidayDate >= DateTime.Now.Date;
+                    string statusText = isUpcoming ? "Upcoming" : "Completed";
+                    string badgeClass = isUpcoming ? "badge bg-success" : "badge bg-danger";
+                }
+                <span class="@badgeClass">@statusText</span>
+            </td>
+            <td>
+                <div class="d-flex gap-2">
+                    <a href="~/Common/EditHoliday?holidayid=@v.HolidayId" class="btn btn-sm btn-primary" title="Edit">
+                        <i class="bx bx-edit"></i>
+                    </a>
+                    <button class="btn btn-sm btn-danger delete-holiday" data-id="@v.HolidayId" title="Delete">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    }
+</tbody>

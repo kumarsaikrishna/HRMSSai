@@ -1,0 +1,9 @@
+﻿@model AttendanceCRM.Models.Entities.ProjectAssignment
+
+<h2>Assignment Details</h2>
+<p><strong>Project:</strong> @Model.Project.ProjectName</p>
+<p><strong>Team Lead:</strong> @Model.TeamLead.UserName</p>
+<p><strong>Assigned On:</strong> @Model.AssignedOn.ToString("yyyy-MM-dd")</p>
+
+<a asp-action="Edit" asp-route-id="@Model.AssignmentId" class="btn btn-warning">Edit</a>
+<a asp-action="Index" class="btn btn-secondary">Back to List</a>

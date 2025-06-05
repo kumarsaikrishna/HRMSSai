@@ -1,0 +1,46 @@
+﻿@model AttendanceCRM.Models.Entities.BugTracking
+
+@{
+    ViewData["Title"] = "Edit Bug";
+}
+
+<h2>Edit Bug</h2>
+
+<form asp-action="Edit">
+    <input type="hidden" asp-for="BugId" />
+
+    <div class="form-group">
+        <label asp-for="BugDescription" class="control-label"></label>
+        <input asp-for="BugDescription" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Priority" class="control-label"></label>
+        <select asp-for="Priority" class="form-control">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Status" class="control-label"></label>
+        <select asp-for="Status" class="form-control">
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="AssignedTo" class="control-label"></label>
+        <select asp-for="AssignedTo" class="form-control" asp-items="@(new SelectList(ViewBag.Users, "UserId", "UserName"))">
+            <option value="">Unassigned</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-success">Save Changes</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

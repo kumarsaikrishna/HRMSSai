@@ -1,0 +1,138 @@
+﻿ @model List<AttendanceCRM.Models.DTOS.LeavesDTO>
+
+@{
+    int rCnt = 1;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+<style>
+    .input-group {
+        display: flex;
+    }
+
+        .input-group .form-control {
+            flex-grow: 1;
+            border-radius: 4px 0 0 4px;
+        }
+
+        .input-group .btn {
+            border-radius: 0 4px 4px 0;
+        }
+</style>
+
+<script>
+    $(document).ready(function () {
+           // Debounce function to limit search frequency
+           function debounce(func, timeout = 300) {
+               let timer;
+               return (...args) => {
+                   clearTimeout(timer);
+                   timer = setTimeout(() => { func.apply(this, args); }, timeout);
+               };
+           }
+
+           // Search functionality
+           const performSearch = debounce(function() {
+               var searchTerm = $("#filterInput").val().trim();
+
+               $.ajax({
+                    url: "@Url.Action("LeaveListindividually", "Common")",
+                   type: "GET",
+                   data: {
+                       searchTerm: searchTerm,
+                       page: 1
+                   },
+                   headers: {
+                       "X-Requested-With": "XMLHttpRequest"
+                   },
+                   success: function(result) {
+                       // Replace table body correctly
+                         $("#leaveTable").html(result);
+                   },
+                   error: function() {
+                       Swal.fire({
+                           icon: 'error',
+                           title: 'Search Error',
+                           text: 'Unable to perform search. Please try again.'
+                       });
+                   }
+               });
+           });
+
+           // Attach search handler
+           $("#filterInput").on("input", performSearch);
+    });
+</script>
+
+<div class="card row d-flex p-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Leave List</h5>
+        <div>
+            <a href="~/Common/ApplyLeave" class="btn btn-dark">Apply Leave</a>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<!-- Page Content -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Leave List</h5>
+        <div class="search-container">
+            <input type="text" id="filterInput" class="form-control" placeholder="Search By Name" />
+        </div>
+
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped" id="leaveTable">
+                <!-- Table will be populated by partial view -->
+                <partial name="_Leave" model="Model" />
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="pagination-info">
+                Showing @((ViewBag.CurrentPage - 1) * ViewBag.PageSize + 1) to
+                @(Math.Min(ViewBag.CurrentPage * ViewBag.PageSize, ViewBag.TotalItems)) of
+                @ViewBag.TotalItems entries
+            </div>
+
+            <nav>
+                <ul class="pagination mb-0">
+                    @{
+                        int currentPage = ViewBag.CurrentPage;
+                        int totalPages = ViewBag.TotalPages;
+                        int startPage = Math.Max(1, currentPage - 2);
+                        int endPage = Math.Min(totalPages, startPage + 4); // Ensure only 5 pages are displayed
+                    }
+
+                    <!-- Previous Button -->
+                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("LeaveListindividually", new { page = currentPage - 1, searchTerm = ViewBag.SearchTerm })">Previous</a>
+                    </li>
+
+                    <!-- Page Numbers -->
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == currentPage ? "active" : "")">
+                            <a class="page-link" href="@Url.Action("LeaveListindividually", new { page = i, searchTerm = ViewBag.SearchTerm })">@i</a>
+                        </li>
+                    }
+
+                    <!-- Next Button -->
+                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("LeaveListindividually", new { page = currentPage + 1, searchTerm = ViewBag.SearchTerm })">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+```

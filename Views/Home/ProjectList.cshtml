@@ -1,0 +1,63 @@
+﻿@model List<AttendanceCRM.Models.Entities.ProjectEntity>
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<!-- Breadcrumb -->
+
+<div class="card row d-flex p-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Total Projects</h5>
+        <div>
+            <a href="@Url.Action("AdminDash", "Home")" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+
+
+<table class="table table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Project Name</th>
+            <th>Client Name</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+            <th>Budget</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Count > 0)
+        {
+            @foreach (var project in Model)
+            {
+                <tr>
+                    <td>@project.ProjectName</td>
+                    <td>@project.ClientName</td>
+                    <td>@project.StartDate.ToString("dd MMM yyyy")</td>
+                    <td>@(project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing")</td>
+                    <td>
+                        <span class="badge @(project.Status == "Completed" ? "bg-success" : "bg-warning")">
+                            @project.Status
+                        </span>
+                    </td>
+                    <td>@(project.Budget.HasValue ? $"₹{project.Budget.Value:N2}" : "N/A")</td>
+
+                    <td>@project.Description</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="7" class="text-center text-muted">No projects available.</td>
+            </tr>
+        }
+       
+    </tbody>
+</table>
+
