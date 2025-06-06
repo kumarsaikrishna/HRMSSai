@@ -12,7 +12,13 @@
 
         public DateTime? PunchOutTime { get; set; }
         public int ProductionDuration { get; set; }
-
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? SelfiePath { get; set; }
+        public double? PunchOutLatitude { get; set; }
+        public double? PunchOutLongitude { get; set; }
+        public string? PunchOutSelfiePath { get; set; }
+        public string? WorkType { get; set; }
         public string? Status { get; set; }
         public string? ScreenShot { get; set; }
         public bool? IsDeleted { get; set; }
@@ -41,7 +47,13 @@
         public string? Status { get; set; }
         public string? Email { get; set; }
         public string? MobileNumber { get; set; }
-
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? SelfiePath { get; set; }
+        public double? PunchOutLatitude { get; set; }
+        public double? PunchOutLongitude { get; set; }
+        public string? WorkType { get; set; }
+        public string? PunchOutSelfiePath { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public string? Designation { get; set; }
 

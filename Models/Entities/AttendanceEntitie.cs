@@ -14,7 +14,13 @@ namespace AttendanceCRM.Models.Entities
         public string? Status { get; set; }
         public DateTime? PunchOutTime { get; set; }
 		public int ProductionDuration { get; set; }
-        
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? SelfiePath { get; set; }
+        public string? WorkType { get; set; }
+        public double? PunchOutLatitude { get; set; }
+        public double? PunchOutLongitude { get; set; }
+        public string? PunchOutSelfiePath { get; set; }
 
         public string? ScreenShot { get; set; }
         public string? IPAddress { get; set; }

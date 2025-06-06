@@ -1180,16 +1180,12 @@ namespace AttendanceCRM.Controllers
 
 
 
-        public class LocationModel
-        {
-            public double Latitude { get; set; }
-            public double Longitude { get; set; }
-        }
+   
         [HttpPost]
-        public async Task<IActionResult> PunchIn([FromBody] LocationModel location)
+        public async Task<IActionResult> PunchIn(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude, [FromForm] string WorkType)
         {
-            // Check if user is logged in
-            LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
+            // ✅ Check session
+            var lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
 
             if (lr == null)
             {
@@ -1201,42 +1197,62 @@ namespace AttendanceCRM.Controllers
             ViewBag.emailId = lr.emailId;
             ViewBag.userTypeName = lr.userTypeName;
 
-             //📍 Static Office GPS Coordinates
-            double officeLatitude = 17.447021636336842;
-            double officeLongitude = 78.35464083733754;
-            double allowedRadius = 100; // Allowed distance in meters
+            //// 📍 Static Office GPS Coordinates
+            //double officeLatitude = 17.447021636336842;
+            //double officeLongitude = 78.35464083733754;
+            //double allowedRadius = 800; // meters
 
-             //✅ Calculate Distance
-            double distance = GetDistance(location.Latitude, location.Longitude, officeLatitude, officeLongitude);
+            //// ✅ Distance Check
+            //double distance = GetDistance(latitude, longitude, officeLatitude, officeLongitude);
+            //if (distance > allowedRadius)
+            //{
+            //    return BadRequest(new
+            //    {
+            //        message = "⚠️ Punch-in allowed only in office premises.",
+            //        status = "warning"
+            //    });
+            //}
 
-            if (distance > allowedRadius)
+            // 📸 Save Selfie
+            string selfiePath = "";
+            if (Selfie != null && Selfie.Length > 0)
             {
-                return BadRequest(new
+                string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "selfies");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(Selfie.FileName);
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
                 {
-                    message = "⚠️ Punch-in allowed only in office premises.",
-                    status = "warning"
-                });
+                    await Selfie.CopyToAsync(fileStream);
+                }
+
+                selfiePath = "/selfies/" + uniqueFileName;
             }
 
+            // 🕒 Grace Period Logic
             var gracePeriod = TimeSpan.FromMinutes(20);
-			 var expectedPunchInTime = DateTime.UtcNow.Date.AddHours(9).AddMinutes(30); 
-
-			string userIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-           // string userIpAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? HttpContext.Connection.RemoteIpAddress?.ToString();
-
+            var expectedPunchInTime = DateTime.UtcNow.Date.AddHours(9).AddMinutes(30);
             var punchInTime = DateTime.Now;
-			bool isWithinGracePeriod = punchInTime <= expectedPunchInTime.Add(gracePeriod);
+            int minutesLate = (int)(punchInTime - expectedPunchInTime).TotalMinutes;
+            if (minutesLate < 0) minutesLate = 0;
 
-			 var minutesLate = (int)(punchInTime - expectedPunchInTime).TotalMinutes;
-			 if (minutesLate < 0) minutesLate = 0; 
+            string userIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
 
-			var attendance = new AttendanceEntitie
+            // 💾 Save to DB
+            var attendance = new AttendanceEntitie
             {
                 UserId = lr.userId,
                 PunchInTime = punchInTime,
                 IPAddress = userIpAddress,
-				GracePeriodTime = minutesLate, 
-				IsActive = true,
+                Latitude = latitude,
+                Longitude = longitude,
+                SelfiePath = selfiePath,
+                WorkType=WorkType,
+                GracePeriodTime = minutesLate,
+                IsActive = true,
                 IsDeleted = false,
                 CreatedOn = DateTime.Now,
                 Status = "Present",
@@ -1249,12 +1265,13 @@ namespace AttendanceCRM.Controllers
             return Ok(new
             {
                 message = "✅ Punched in successfully!",
-                status = "success",  
+                status = "success",
                 punchInTime,
-                ipAddress = userIpAddress
-			});
+                ipAddress = userIpAddress,
+                selfieUrl = selfiePath
+            });
         }
-        
+
         private double GetDistance(double lat1, double lon1, double lat2, double lon2)
         {
             double R = 6371000; 
@@ -1348,7 +1365,7 @@ namespace AttendanceCRM.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> PunchOut()
+        public async Task<IActionResult> PunchOut(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude)
         {
             // Get logged in user from session
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
@@ -1361,12 +1378,31 @@ namespace AttendanceCRM.Controllers
             var attendance = await _context.attendanceEntitie
                 .Where(a => a.UserId == lr.userId && a.PunchOutTime == null)
                 .FirstOrDefaultAsync();
+            string selfiePath = "";
+            if (Selfie != null && Selfie.Length > 0)
+            {
+                string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "selfies");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(Selfie.FileName);
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await Selfie.CopyToAsync(fileStream);
+                }
+
+                selfiePath = "/selfies/" + uniqueFileName;
+            }
 
             if (attendance == null)
             {
                 return BadRequest(new { message = "You have not punched in yet." });
             }
-
+            attendance.PunchOutLatitude = latitude;
+            attendance.PunchOutLongitude = longitude;
+            attendance.PunchOutSelfiePath = selfiePath;
             attendance.PunchOutTime = DateTime.Now;
             attendance.ProductionDuration = (int)(attendance.PunchOutTime - attendance.PunchInTime)?.TotalMinutes;
             attendance.UpdatedOn = DateTime.Now;

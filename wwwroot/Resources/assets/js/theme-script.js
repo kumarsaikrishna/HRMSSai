@@ -13,7 +13,11 @@ document.querySelector("html").setAttribute('data-loader', localStorage.getItem(
 
 
 document.addEventListener("DOMContentLoaded", function () {
-
+    var themesettings = {
+        theme: "light",
+        primaryColor: "#0d6efd"
+        // Add more settings as per your need
+    };
     document.body.insertAdjacentHTML('beforeend', themesettings);
 
     const darkModeToggle = document.getElementById('dark-mode-toggle');

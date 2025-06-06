@@ -48,246 +48,305 @@
 
 
 <script>
+    // ------------------------------
+    // Initialization on DOM Load
+    // ------------------------------
     document.addEventListener("DOMContentLoaded", function () {
         checkAttendanceStatus();
+        fetchWorkHours();
+
+        const punchInTime = localStorage.getItem("punchInTime");
+        if (punchInTime) {
+            startWorkHoursTimer(punchInTime);
+        } else {
+            document.getElementById('total-work-hours').innerText = "00:00:00";
+        }
+
+        managePunchButtons();
     });
 
-    function punchIn() {
-        let punchInButton = document.getElementById("punch-in-btn");
+    // ------------------------------
+    // Punch In/Out Button Management
+    // ------------------------------
+    function managePunchButtons() {
+        const punchInBtn = document.getElementById("punchInBtn");
+        const punchOutBtn = document.getElementById("punchOutBtn");
+
+        const punchInTime = localStorage.getItem("punchInTime");
+        const punchOutTime = localStorage.getItem("punchOutTime");
+
+        const now = new Date();
+
+        if (punchInTime) {
+            const inTime = new Date(punchInTime);
+            const hoursPassed = (now - inTime) / (1000 * 60 * 60);
+            if (hoursPassed < 20) {
+                punchInBtn.style.display = "none";
+                punchOutBtn.style.display = "inline-block";
+            } else {
+                // More than 20 hours since punch in
+                punchInBtn.style.display = "inline-block";
+                punchOutBtn.style.display = "none";
+                localStorage.removeItem("punchInTime");
+            }
+        } else if (punchOutTime) {
+            // User punched out but not punched in again
+            punchInBtn.style.display = "inline-block";
+            punchOutBtn.style.display = "none";
+            localStorage.removeItem("punchOutTime");
+        } else {
+            // Default: show Punch In only
+            punchInBtn.style.display = "inline-block";
+            punchOutBtn.style.display = "none";
+        }
+    }
+
+    // ------------------------------
+    // Punch Action Handling
+    // ------------------------------
+    let punchAction = null;
+    let currentLocation = null;
+
+    // Initiate punch process
+    function startPunch(action) {
+        punchAction = action;
+
         if (!navigator.geolocation) {
-            Swal.fire({
-                title: "Error",
-                text: "GPS is not supported by your browser. Please enable location services.",
-                icon: "error",
-                confirmButtonText: "OK"
-            });
+            alert("Geolocation is not supported by your browser.");
             return;
         }
 
-        punchInButton.disabled = true;
-        punchInButton.innerHTML = "Punching In...";
-
-        navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                currentLocation = position.coords;
+                openCamera();
+            },
+            function (err) {
+                alert("Location permission denied. Please allow location access.");
+            }
+        );
     }
 
-    function successCallback(position) {
-        let latitude = position.coords.latitude;
-        let longitude = position.coords.longitude;
+    // Open camera for selfie capture
+    function openCamera() {
+        const video = document.getElementById('cameraStream');
+        const selfieModal = document.getElementById('selfieModal');
+        selfieModal.style.display = "block";
 
-        fetch('/Home/PunchIn', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ latitude, longitude })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (!data || !data.message) throw new Error("Invalid response from server.");
-                Swal.fire({
-                    title: "Success!",
-                    text: data.message,
-                    icon: "success",
-                    confirmButtonText: "OK"
-                }).then(() => window.location.reload());
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+            .then(function (stream) {
+                video.srcObject = stream;
             })
-            .catch(error => {
-                console.error("Error:", error);
-                Swal.fire({
-                    title: "Warning!",
-                    text: error.message || "⚠️ Punch-in allowed only in office premises.",
-                    icon: "warning",
-                    confirmButtonText: "OK"
-                });
-                punchInButton.disabled = false;
-                punchInButton.innerHTML = "Punch In";
+            .catch(function (err) {
+                console.error("Camera error:", err);
+                alert("Unable to access camera. Please allow camera access and try again.");
             });
     }
 
-    function errorCallback(error) {
-        Swal.fire({
-            title: "Error!",
-            text: "Error getting location: " + error.message,
-            icon: "error",
-            confirmButtonText: "OK"
+    // Stop camera stream cleanly
+    function captureSelfie() {
+        const video = document.getElementById('cameraStream');
+        const canvas = document.getElementById('selfieCanvas');
+        const context = canvas.getContext('2d');
+
+        // Draw current video frame on canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Stop camera stream to free up resources
+        stopCameraStream();
+
+        // Hide the selfie modal
+        document.getElementById('selfieModal').style.display = 'none';
+
+        // Get work type from select/input
+        const workType = document.getElementById("workType").value;
+
+        // Convert canvas image to Data URL (base64)
+        const dataUrl = canvas.toDataURL("image/jpeg");
+
+        // Convert base64 Data URL to Blob object
+        const imageBlob = dataURItoBlob(dataUrl);
+
+        // Prepare FormData for POST request
+        const formData = new FormData();
+        formData.append("ActionType", punchAction);
+        formData.append("Latitude", currentLocation.latitude);
+        formData.append("Longitude", currentLocation.longitude);
+        formData.append("Selfie", imageBlob, "selfie.jpg"); // Key name must match server parameter
+        formData.append("WorkType", workType);
+
+        // Determine API endpoint based on punch action
+        const apiUrl = punchAction === "in" ? "/Home/PunchIn" : "/Home/PunchOut";
+
+        // Send POST request with FormData (multipart/form-data)
+        fetch(apiUrl, {
+            method: 'POST',
+            body: formData,
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Network response was not OK");
+            return res.json();
+        })
+        .then(data => {
+            alert(data.message || "Success!");
+
+            const now = new Date().toLocaleTimeString();
+            document.getElementById("punchInfoTable").style.display = "block";
+
+            if (punchAction === "in") {
+                localStorage.setItem("punchInTime", new Date().toISOString());
+                localStorage.removeItem("punchOutTime");
+
+                startWorkHoursTimer(localStorage.getItem("punchInTime"));
+
+                document.getElementById("punch-in-info").style.display = "flex";
+                document.getElementById("punch-in-time").innerText = now;
+
+                document.getElementById("punchInRow").style.display = "table-row";
+                document.getElementById("punchInSelfie").src = dataUrl;
+                document.getElementById("punchInTime").innerText = now;
+                document.getElementById("punchInMap").src =
+                    `https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}&hl=es;z=14&output=embed`;
+
+            } else {
+                localStorage.setItem("punchOutTime", new Date().toISOString());
+                localStorage.removeItem("punchInTime");
+
+                stopWorkHoursTimer();
+
+                document.getElementById("punchOutRow").style.display = "table-row";
+                document.getElementById("punchOutSelfie").src = dataUrl;
+                document.getElementById("punchOutTime").innerText = now;
+                document.getElementById("punchOutMap").src =
+                    `https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}&hl=es;z=14&output=embed`;
+            }
+
+            managePunchButtons();
+        })
+        .catch(err => {
+            console.error("Punch failed:", err);
+            alert("Punch failed.");
         });
     }
 
-    function punchOut() {
-        const punchOutBtn = document.getElementById("punch-out-btn");
-        punchOutBtn.disabled = true;
+    // Utility function to convert base64 DataURL to Blob
+    function dataURItoBlob(dataURI) {
+        const byteString = atob(dataURI.split(',')[1]);
+        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
 
-        fetch('/Home/PunchOut', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(error => {
-                        throw new Error(error.message || "Punch out failed.");
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                Swal.fire({
-                    title: "Success!",
-                    text: data.message,
-                    icon: "success",
-                    confirmButtonText: "OK"
-                }).then(() => window.location.reload());
-            })
-            .catch(error => {
-                console.error("Error:", error);
-                punchOutBtn.disabled = false;
-                Swal.fire({
-                    title: "Error!",
-                    text: error.message || "Something went wrong!",
-                    icon: "error",
-                    confirmButtonText: "OK"
-                });
-            });
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+
+        return new Blob([ab], { type: mimeString });
     }
 
-    function pad(num) {
-        return num < 10 ? "0" + num : num;
+    // Stop camera stream and free resources
+    function stopCameraStream() {
+        const video = document.getElementById('cameraStream');
+        const tracks = video?.srcObject?.getTracks();
+
+        if (tracks && tracks.length) {
+            tracks.forEach(track => track.stop());
+        }
+        video.srcObject = null;
     }
 
-    function updateTimerDisplay(punchInTime) {
-        const punchInDate = new Date(punchInTime);
-        const now = new Date();
-        const diffMs = now - punchInDate;
-        const totalSeconds = Math.floor(diffMs / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
+    // ------------------------------
+    // Work Hours Timer Functions
+    // ------------------------------
+    let workHoursTimer = null;
 
-        document.getElementById("total-work-hours").innerText = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    function startWorkHoursTimer(punchInISOTime) {
+        if (workHoursTimer) clearInterval(workHoursTimer);
 
-        const maxSeconds = 8 * 3600;
-        let fillPercentage = Math.min((totalSeconds / maxSeconds) * 100, 100);
+        const punchInTime = new Date(punchInISOTime);
 
-        const waterFillElem = document.querySelector('.attendance-circle-progress .water-fill');
-        if (waterFillElem) waterFillElem.style.height = fillPercentage + '%';
+        workHoursTimer = setInterval(() => {
+            const now = new Date();
+            let diff = now - punchInTime;
+
+            if (diff < 0) diff = 0;
+
+            const totalSeconds = Math.floor(diff / 1000);
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+
+            document.getElementById('total-work-hours').innerText = `${hours}:${minutes}:${seconds}`;
+        }, 1000);
     }
 
+    function stopWorkHoursTimer() {
+        if (workHoursTimer) {
+            clearInterval(workHoursTimer);
+            workHoursTimer = null;
+        }
+        document.getElementById('total-work-hours').innerText = "00:00:00";
+    }
+
+    // ------------------------------
+    // Server Data Fetch & Status Check
+    // ------------------------------
+
+    // Check attendance status and update UI accordingly
     function checkAttendanceStatus() {
-        fetch('/Home/GetAttendanceStatus', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        })
+        fetch('/Home/GetAttendanceStatus')
             .then(response => response.json())
             .then(data => {
-                const punchInDate = data.punchInTime ? new Date(data.punchInTime) : null;
+                const punchInBtn = document.getElementById("punch-in-btn");
+                const punchOutBtn = document.getElementById("punch-out-btn");
 
                 if (data.canPunchIn) {
-                    document.getElementById("punch-in-btn").style.display = "block";
-                    document.getElementById("punch-in-btn").disabled = false;
-                    document.getElementById("punch-out-btn").style.display = "none";
-                    document.getElementById("punch-in-info").style.display = "none";
-
-                    if (checkAttendanceStatus.timerInterval) {
-                        clearInterval(checkAttendanceStatus.timerInterval);
-                        checkAttendanceStatus.timerInterval = null;
-                    }
-
-                    document.getElementById("total-work-hours").innerText = "00:00:00";
-                    const waterFillElem = document.querySelector('.attendance-circle-progress .water-fill');
-                    if (waterFillElem) waterFillElem.style.height = '0%';
-
+                    punchInBtn.style.display = "block";
+                    punchInBtn.disabled = false;
+                    punchOutBtn.style.display = "none";
                 } else if (data.isPunchedIn) {
-                    document.getElementById("punch-in-btn").style.display = "none";
-                    document.getElementById("punch-out-btn").style.display = "block";
-                    document.getElementById("punch-in-info").style.display = "block";
-
-                    if (!checkAttendanceStatus.timerInterval && data.punchInTime) {
-                        updateTimerDisplay(data.punchInTime);
-                        checkAttendanceStatus.timerInterval = setInterval(() => {
-                            updateTimerDisplay(data.punchInTime);
-                        }, 1000);
-                    }
+                    punchInBtn.style.display = "none";
+                    punchOutBtn.style.display = "block";
                 } else {
-                    if (checkAttendanceStatus.timerInterval) {
-                        clearInterval(checkAttendanceStatus.timerInterval);
-                        checkAttendanceStatus.timerInterval = null;
-                    }
+                    punchInBtn.style.display = "block";
+                    punchInBtn.disabled = true;
+                    punchOutBtn.style.display = "none";
+                }
 
-                    document.getElementById("punch-in-btn").style.display = "block";
-                    document.getElementById("punch-in-btn").disabled = true;
-                    document.getElementById("punch-out-btn").style.display = "none";
-                    document.getElementById("punch-in-info").style.display = "none";
-                    document.getElementById("total-work-hours").innerText = data.totalHours || "00:00:00";
+                if (data.punchInTime) {
+                    updateTimer(data.punchInTime);
                 }
             })
-            .catch(error => console.error("Error:", error));
+            .catch(error => console.error("Status check error:", error));
     }
 
-    // Call checkAttendanceStatus every minute
-    setInterval(checkAttendanceStatus, 60000);
+    // Timer for showing live work duration from server punch in time
+    function updateTimer(punchInTime) {
+        const punchInDate = new Date(punchInTime);
 
-    // Auto Punch Out at 11:59 PM
-    setInterval(() => {
-        const now = new Date();
-        if (now.getHours() === 23 && now.getMinutes() === 59) {
-            autoPunchOut();
-        }
-    }, 60000);
+        setInterval(() => {
+            const now = new Date();
+            const diff = new Date(now - punchInDate);
+            const h = diff.getUTCHours().toString().padStart(2, '0');
+            const m = diff.getUTCMinutes().toString().padStart(2, '0');
+            const s = diff.getUTCSeconds().toString().padStart(2, '0');
 
-    function autoPunchOut() {
-        fetch('/Home/AutoPunchOut', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
+            document.getElementById("total-work-hours").innerText = `${h}:${m}:${s}`;
+        }, 1000);
+    }
+
+    // Fetch today's and this week's work hours from server
+    function fetchWorkHours() {
+        fetch('/Home/CalculateWorkHours')
             .then(response => response.json())
             .then(data => {
-                console.log("Auto Punch-Out Successful:", data);
-                checkAttendanceStatus();
+                document.getElementById("total-hours-today").innerText = data.totalWorkHoursToday || "00:00:00";
+                document.getElementById("total-hours-week").innerText = data.totalWorkHoursWeek || "00:00:00";
             })
-            .catch(error => console.error("Error:", error));
+            .catch(err => console.error("Work hours fetch error:", err));
     }
-
-    // Auto Mark Absent at 4:30 AM IST (UTC +5:30 = 23:00 UTC)
-    setInterval(() => {
-        let now = new Date();
-        now.setMinutes(now.getMinutes() + 330); // Convert to IST
-
-        if (now.getUTCHours() === 22 && now.getUTCMinutes() === 30) {
-            autoMarkAbsent();
-        }
-    }, 60000);
-
-    function autoMarkAbsent() {
-        fetch('/Home/AutoMarkAbsent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Absent marked successfully:", data);
-            })
-            .catch(error => console.error("Absent mark error:", error));
-    }
-
-    function formatTime(date) {
-        if (!(date instanceof Date)) return "00:00:00";
-        let hours = date.getHours().toString().padStart(2, '0');
-        let minutes = date.getMinutes().toString().padStart(2, '0');
-        let seconds = date.getSeconds().toString().padStart(2, '0');
-        return `${hours}:${minutes}:${seconds}`;
-    }
-
-    // Fetch total work hours for the day and week
-    fetch('/Home/GetWorkHours')
-        .then(response => response.json())
-        .then(data => {
-            let totalHoursToday = document.getElementById("total-hours-today");
-            let totalHoursWeek = document.getElementById("total-hours-week");
-
-            if (totalHoursToday) totalHoursToday.innerText = data.totalWorkHoursToday || "00:00:00";
-            if (totalHoursWeek) totalHoursWeek.innerText = data.totalWorkHoursWeek || "00:00:00";
-        })
-        .catch(error => console.error('Error fetching work hours:', error));
 
 </script>
-
 <script>
     $(document).ready(function () {
         loadNotifications();
@@ -567,38 +626,78 @@
 
                 <div class="text-center">
                     <!-- Punch In Info (Initially Hidden) -->
-                    <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
+                   @*  <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
                         style="display: @(Model.IsPunchedIn ? "flex" : "none"); gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
                         <i class="ti ti-fingerprint text-primary"></i>
                         <span>Punched In at</span>
                         <span id="punch-in-time" class="fw-bold">
                             @Model.PunchInTime?.ToString("hh:mm:ss tt")
                         </span>
-
+                    </h6> *@
+                    <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
+                        style="display: none; gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <i class="ti ti-fingerprint text-primary"></i>
+                        <span>Punched In at</span>
+                        <span id="punch-in-time" class="fw-bold ms-1"></span>
                     </h6>
 
-                    <!-- Punch In Button -->
-                    <button type="submit" class="btn btn-primary w-100" id="punch-in-btn"
-                            style="display: none;"
-                            onclick="punchIn()">
-                        Punch In
-                    </button>
+                    <!-- Work Type Dropdown -->
+                    <div class="mb-3">
+                        <label for="workType" class="form-label fw-medium">Work Type</label>
+                        <select id="workType" class="form-select text-center" style="max-width: 200px; margin: 0 auto;">
+                            <option value="WFO" selected>WFO</option>
+                            <option value="WFH">WFH</option>
+                        </select>
+                    </div>
 
+                    <!-- Selfie Modal -->
+                    <div id="selfieModal" style="display:none; text-align:center; padding: 20px;">
+                        <video id="cameraStream" autoplay playsinline width="300" height="300"
+                               style="border-radius: 10px; border: 2px solid #ccc;"></video>
+                        <br />
+                        <button onclick="captureSelfie()" class="btn btn-success mt-2">📸 Capture Selfie</button>
+                        <canvas id="selfieCanvas" width="300" height="300" style="display:none;"></canvas>
+                    </div>
 
-                    <!-- Punch Out Button -->
-                    <button type="button" class="btn btn-danger w-100" id="punch-out-btn"
-                            style="display: none;" onclick="punchOut()">
-                        Punch Out
-                    </button>
-
-                     
+                    <!-- Punch Buttons -->
+                    <button id="punchInBtn" onclick="startPunch('in')" class="btn btn-primary">Punch In</button>
+                    <button id="punchOutBtn" onclick="startPunch('out')" class="btn btn-danger" style="display:none;">Punch Out</button>
                 </div>
+
 
             </div>
         </div>
-
+       
 
     </div>
+    <!-- Punch Info Table -->
+    <div id="punchInfoTable" class="mt-4" style="display: none;">
+        <table class="table table-bordered text-center">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Selfie</th>
+                    <th>Time</th>
+                    <th>Location</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="punchInRow" style="display: none;">
+                    <td>Punch In</td>
+                    <td><img id="punchInSelfie" style="width: 100px; height: auto; border-radius: 8px;" /></td>
+                    <td id="punchInTime"></td>
+                    <td><iframe id="punchInMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
+                </tr>
+                <tr id="punchOutRow" style="display: none;">
+                    <td>Punch Out</td>
+                    <td><img id="punchOutSelfie" style="width: 100px; height: auto; border-radius: 8px;" /></td>
+                    <td id="punchOutTime"></td>
+                    <td><iframe id="punchOutMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
     <div class="card bg-warning">
         <div class="card-body d-flex align-items-center justify-content-between p-3">
             <div>
@@ -691,6 +790,9 @@
         </div>
     </div>
 </div>
+<script>
+   
+</script>
 
 
 
