@@ -1,4 +1,4 @@
-﻿ @model AttendanceCRM.Models.DTOS.AttendanceViewModel
+﻿@model AttendanceCRM.Models.DTOS.AttendanceViewModel
 
 @{
     var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
@@ -43,14 +43,61 @@
             color: #333;
             font-weight: bold;
         }
+
+    .progress-clock {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        margin: auto;
+    }
+
+    .progress-ring {
+        transform: rotate(-90deg);
+    }
+
+    .progress-ring__circle-bg {
+        fill: transparent;
+        stroke: #e6f0f8;
+        stroke-width: 10;
+    }
+
+    .progress-ring__circle {
+        fill: transparent;
+        stroke: #2196f3;
+        stroke-width: 10;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.5s;
+    }
+
+    .progress-label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 150px;
+        height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+        .progress-label span {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .progress-label h6 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+        }
 </style>
 
 
 
 <script>
-    // ------------------------------
-    // Initialization on DOM Load
-    // ------------------------------
     document.addEventListener("DOMContentLoaded", function () {
         checkAttendanceStatus();
         fetchWorkHours();
@@ -63,18 +110,14 @@
         }
 
         managePunchButtons();
+        fetchTodayPunchInfo(); // ✅ Load punch info on page load
     });
 
-    // ------------------------------
-    // Punch In/Out Button Management
-    // ------------------------------
     function managePunchButtons() {
         const punchInBtn = document.getElementById("punchInBtn");
         const punchOutBtn = document.getElementById("punchOutBtn");
-
         const punchInTime = localStorage.getItem("punchInTime");
         const punchOutTime = localStorage.getItem("punchOutTime");
-
         const now = new Date();
 
         if (punchInTime) {
@@ -84,50 +127,40 @@
                 punchInBtn.style.display = "none";
                 punchOutBtn.style.display = "inline-block";
             } else {
-                // More than 20 hours since punch in
                 punchInBtn.style.display = "inline-block";
                 punchOutBtn.style.display = "none";
                 localStorage.removeItem("punchInTime");
             }
         } else if (punchOutTime) {
-            // User punched out but not punched in again
             punchInBtn.style.display = "inline-block";
             punchOutBtn.style.display = "none";
             localStorage.removeItem("punchOutTime");
         } else {
-            // Default: show Punch In only
             punchInBtn.style.display = "inline-block";
             punchOutBtn.style.display = "none";
         }
     }
 
-    // ------------------------------
-    // Punch Action Handling
-    // ------------------------------
     let punchAction = null;
     let currentLocation = null;
 
-    // Initiate punch process
     function startPunch(action) {
         punchAction = action;
-
         if (!navigator.geolocation) {
             alert("Geolocation is not supported by your browser.");
             return;
         }
-
         navigator.geolocation.getCurrentPosition(
             function (position) {
                 currentLocation = position.coords;
                 openCamera();
             },
-            function (err) {
+            function () {
                 alert("Location permission denied. Please allow location access.");
             }
         );
     }
 
-    // Open camera for selfie capture
     function openCamera() {
         const video = document.getElementById('cameraStream');
         const selfieModal = document.getElementById('selfieModal');
@@ -139,143 +172,117 @@
             })
             .catch(function (err) {
                 console.error("Camera error:", err);
-                alert("Unable to access camera. Please allow camera access and try again.");
+                alert("Unable to access camera. Please allow camera access.");
             });
     }
 
-    // Stop camera stream cleanly
     function captureSelfie() {
         const video = document.getElementById('cameraStream');
         const canvas = document.getElementById('selfieCanvas');
         const context = canvas.getContext('2d');
-
-        // Draw current video frame on canvas
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Stop camera stream to free up resources
         stopCameraStream();
-
-        // Hide the selfie modal
         document.getElementById('selfieModal').style.display = 'none';
 
-        // Get work type from select/input
         const workType = document.getElementById("workType").value;
-
-        // Convert canvas image to Data URL (base64)
         const dataUrl = canvas.toDataURL("image/jpeg");
-
-        // Convert base64 Data URL to Blob object
         const imageBlob = dataURItoBlob(dataUrl);
 
-        // Prepare FormData for POST request
         const formData = new FormData();
         formData.append("ActionType", punchAction);
         formData.append("Latitude", currentLocation.latitude);
         formData.append("Longitude", currentLocation.longitude);
-        formData.append("Selfie", imageBlob, "selfie.jpg"); // Key name must match server parameter
+        formData.append("Selfie", imageBlob, "selfie.jpg");
         formData.append("WorkType", workType);
+        formData.append("WFHReason", selectedWFHReason);
 
-        // Determine API endpoint based on punch action
         const apiUrl = punchAction === "in" ? "/Home/PunchIn" : "/Home/PunchOut";
 
-        // Send POST request with FormData (multipart/form-data)
         fetch(apiUrl, {
             method: 'POST',
             body: formData,
         })
-        .then(res => {
-            if (!res.ok) throw new Error("Network response was not OK");
-            return res.json();
-        })
-        .then(data => {
-            alert(data.message || "Success!");
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || "Success!");
 
-            const now = new Date().toLocaleTimeString();
-            document.getElementById("punchInfoTable").style.display = "block";
+                if (punchAction === "in") {
+                    localStorage.setItem("punchInTime", new Date().toISOString());
+                    localStorage.removeItem("punchOutTime");
+                    startWorkHoursTimer(localStorage.getItem("punchInTime"));
+                } else {
+                    localStorage.setItem("punchOutTime", new Date().toISOString());
+                    localStorage.removeItem("punchInTime");
+                    stopWorkHoursTimer();
+                }
 
-            if (punchAction === "in") {
-                localStorage.setItem("punchInTime", new Date().toISOString());
-                localStorage.removeItem("punchOutTime");
-
-                startWorkHoursTimer(localStorage.getItem("punchInTime"));
-
-                document.getElementById("punch-in-info").style.display = "flex";
-                document.getElementById("punch-in-time").innerText = now;
-
-                document.getElementById("punchInRow").style.display = "table-row";
-                document.getElementById("punchInSelfie").src = dataUrl;
-                document.getElementById("punchInTime").innerText = now;
-                document.getElementById("punchInMap").src =
-                    `https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}&hl=es;z=14&output=embed`;
-
-            } else {
-                localStorage.setItem("punchOutTime", new Date().toISOString());
-                localStorage.removeItem("punchInTime");
-
-                stopWorkHoursTimer();
-
-                document.getElementById("punchOutRow").style.display = "table-row";
-                document.getElementById("punchOutSelfie").src = dataUrl;
-                document.getElementById("punchOutTime").innerText = now;
-                document.getElementById("punchOutMap").src =
-                    `https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}&hl=es;z=14&output=embed`;
-            }
-
-            managePunchButtons();
-        })
-        .catch(err => {
-            console.error("Punch failed:", err);
-            alert("Punch failed.");
-        });
+                // ✅ Reload data from DB
+                fetchTodayPunchInfo();
+                managePunchButtons();
+            })
+            .catch(err => {
+                console.error("Punch failed:", err);
+                alert("Punch failed.");
+            });
     }
 
-    // Utility function to convert base64 DataURL to Blob
-    function dataURItoBlob(dataURI) {
-        const byteString = atob(dataURI.split(',')[1]);
-        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    function fetchTodayPunchInfo() {
+        fetch('/Home/GetTodayPunchInfo')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('punchInfoTable').style.display = 'block';
 
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
+                    if (data.punchInTime) {
+                        document.getElementById('punchInRow').style.display = 'table-row';
+                        document.getElementById('punchInTime').textContent = data.punchInTime;
+                        document.getElementById('punchInSelfie').src = data.punchInSelfie;
+                    document.getElementById('punchInMap').src = data.punchInLocation;
 
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-        }
+                    }
 
-        return new Blob([ab], { type: mimeString });
+                    if (data.punchOutTime) {
+                        document.getElementById('punchOutRow').style.display = 'table-row';
+                        document.getElementById('punchOutTime').textContent = data.punchOutTime;
+                        document.getElementById('punchOutSelfie').src = data.punchOutSelfie;
+                      document.getElementById('punchOutMap').src = data.punchOutLocation;
+                    }
+                }
+            })
+            .catch(err => console.error("Error fetching punch info:", err));
     }
 
-    // Stop camera stream and free resources
     function stopCameraStream() {
         const video = document.getElementById('cameraStream');
         const tracks = video?.srcObject?.getTracks();
-
-        if (tracks && tracks.length) {
-            tracks.forEach(track => track.stop());
-        }
+        if (tracks) tracks.forEach(track => track.stop());
         video.srcObject = null;
     }
 
-    // ------------------------------
-    // Work Hours Timer Functions
-    // ------------------------------
+    function dataURItoBlob(dataURI) {
+        const byteString = atob(dataURI.split(',')[1]);
+        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mimeString });
+    }
+
     let workHoursTimer = null;
 
     function startWorkHoursTimer(punchInISOTime) {
         if (workHoursTimer) clearInterval(workHoursTimer);
-
         const punchInTime = new Date(punchInISOTime);
-
         workHoursTimer = setInterval(() => {
             const now = new Date();
             let diff = now - punchInTime;
-
             if (diff < 0) diff = 0;
-
             const totalSeconds = Math.floor(diff / 1000);
             const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
             const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
             const seconds = String(totalSeconds % 60).padStart(2, '0');
-
             document.getElementById('total-work-hours').innerText = `${hours}:${minutes}:${seconds}`;
         }, 1000);
     }
@@ -288,28 +295,25 @@
         document.getElementById('total-work-hours').innerText = "00:00:00";
     }
 
-    // ------------------------------
-    // Server Data Fetch & Status Check
-    // ------------------------------
-
-    // Check attendance status and update UI accordingly
     function checkAttendanceStatus() {
         fetch('/Home/GetAttendanceStatus')
             .then(response => response.json())
             .then(data => {
-                const punchInBtn = document.getElementById("punch-in-btn");
-                const punchOutBtn = document.getElementById("punch-out-btn");
+                const punchInBtn = document.getElementById("punchInBtn");
+                const punchOutBtn = document.getElementById("punchOutBtn");
 
                 if (data.canPunchIn) {
-                    punchInBtn.style.display = "block";
-                    punchInBtn.disabled = false;
+                    // Show Punch In, hide Punch Out
+                    punchInBtn.style.display = "inline-block";
                     punchOutBtn.style.display = "none";
+                    punchInBtn.disabled = false;
                 } else if (data.isPunchedIn) {
+                    // Already punched in, waiting for Punch Out
                     punchInBtn.style.display = "none";
-                    punchOutBtn.style.display = "block";
-                } else {
-                    punchInBtn.style.display = "block";
-                    punchInBtn.disabled = true;
+                    punchOutBtn.style.display = "inline-block";
+                } else if (data.alreadyPunchedOut) {
+                    // Both are done today
+                    punchInBtn.style.display = "none";
                     punchOutBtn.style.display = "none";
                 }
 
@@ -320,22 +324,18 @@
             .catch(error => console.error("Status check error:", error));
     }
 
-    // Timer for showing live work duration from server punch in time
     function updateTimer(punchInTime) {
         const punchInDate = new Date(punchInTime);
-
         setInterval(() => {
             const now = new Date();
             const diff = new Date(now - punchInDate);
             const h = diff.getUTCHours().toString().padStart(2, '0');
             const m = diff.getUTCMinutes().toString().padStart(2, '0');
             const s = diff.getUTCSeconds().toString().padStart(2, '0');
-
             document.getElementById("total-work-hours").innerText = `${h}:${m}:${s}`;
         }, 1000);
     }
 
-    // Fetch today's and this week's work hours from server
     function fetchWorkHours() {
         fetch('/Home/CalculateWorkHours')
             .then(response => response.json())
@@ -346,6 +346,25 @@
             .catch(err => console.error("Work hours fetch error:", err));
     }
 
+        function setProgress(timeString) {
+        const circle = document.querySelector('.progress-ring__circle');
+        const radius = circle.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        circle.style.strokeDashoffset = circumference;
+
+        const [hh, mm, ss] = timeString.split(":").map(Number);
+        const totalSeconds = hh * 3600 + mm * 60 + ss;
+        const maxSeconds = 9 * 3600; // 9 hours
+
+        const percent = Math.min(totalSeconds / maxSeconds, 1);
+        const offset = circumference - percent * circumference;
+        circle.style.strokeDashoffset = offset;
+    }
+
+    // Set from JS (can bind to timer too)
+    setProgress("00:30:20");
 </script>
 <script>
     $(document).ready(function () {
@@ -392,7 +411,42 @@
     });
 </script>
 
- 
+
+
+<script>
+    let selectedWFHReason = "";
+
+    // Triggered when dropdown changes
+    document.getElementById("workType").addEventListener("change", function () {
+        if (this.value === "WFH") {
+            const wfhModal = new bootstrap.Modal(document.getElementById('wfhReasonModal'));
+            wfhModal.show();
+        }
+    });
+
+    // Called when "Continue" is clicked in WFH modal
+    function submitWFHReason() {
+        const reasonText = document.getElementById("wfhReason").value.trim();
+
+        if (!reasonText) {
+            alert("Please enter a reason for WFH.");
+            return;
+        }
+
+        selectedWFHReason = reasonText;
+
+        // Close the WFH reason modal
+        const wfhModalElement = document.getElementById('wfhReasonModal');
+        const wfhModalInstance = bootstrap.Modal.getInstance(wfhModalElement);
+        wfhModalInstance.hide();
+
+        // Wait for the modal to fully close, then show selfie modal
+        setTimeout(() => {
+            const selfieModal = new bootstrap.Modal(document.getElementById('selfieModal'));
+            selfieModal.show();
+        }, 500);
+    }
+</script>
 
 
 
@@ -408,7 +462,7 @@
         <!-- Right Section: Notification Bell -->
         <div class="nav-item dropdown">
             <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fa-solid fa-bell"></i> 
+                <i class="fa-solid fa-bell"></i>
                 <span id="notificationCount" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
                     0
                 </span>
@@ -425,215 +479,29 @@
 
 
 <div class="row">
+    <!-- Attendance & Punch Controls -->
     <div class="col-xl-4 d-flex">
-        <div class="card position-relative flex-fill">
-            <div class="card-header bg-dark">
-                <div class="d-flex align-items-center">
-                    <span class="avatar avatar-lg bg-dark rounded-circle">
-                        <img src="@Url.Content("~/UploadedImages/" + @Model.ProfilePicture)" class="img-fluid" style="width: 50px; height: 50px; border-radius: 50%;" alt="Img">
-                    </span>
-                    <div>
-                        <h5 class="text-white mb-1">@Model.UserName</h5>
-                        <div class="d-flex align-items-center">
-                            <p class="text-white fs-12 mb-0">@Model.Designation</p>
-                            @* <span class="mx-1"><i class="ti ti-point-filled text-primary"></i></span>
-                            <p class="fs-12">UI/UX Design</p> *@
-                        </div>
-                    </div>
-                </div>
-                <a href="~/Home/EditUserempdash?userid=@Model.UserId" class="btn btn-icon btn-sm text-white rounded-circle edit-top"><i class="ti ti-edit"></i></a>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <span class="d-block mb-1 fs-13">Phone Number</span>
-                    <p class="text-gray-9">@Model.MobileNumber</p>
-                </div>
-                <div class="mb-3">
-                    <span class="d-block mb-1 fs-13">Email Address</span>
-                    <p class="text-gray-9"><a class="__cf_email__">@Model.Email</a></p>
-                </div>
-                @* <div class="mb-3">
-                <span class="d-block mb-1 fs-13">Report Office</span>
-                <p class="text-gray-9">Doglas Martini</p>
-                </div> *@
-                <div class="mb-3">
-                    <span class="d-block mb-1 fs-13">Employee Id</span>
-                    <p class="text-gray-9">@Model.EmployeeId</p>
-                </div>
-                <div>
-                    <span class="d-block mb-1 fs-13">Joined on</span>
-                    <p class="text-gray-9">@(Model.DateOfJoining.HasValue ? Model.DateOfJoining.Value.ToString("yyyy-MM-dd") : "")</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-   <div class="col-xl-4 d-flex">
-    <div class="card">
-        <div class="card-header">
-            <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                <h5>Leave Details</h5>
-                    <select id="yearDropdown" class="form-control">
-                        @for (int i = DateTime.Now.Year; i >= DateTime.Now.Year - 5; i--)
-                        {
-                            <option value="@i" selected="@(i == (ViewBag.SelectedYear ?? DateTime.Now.Year) ? "selected" : null)">
-                                @i
-                            </option>
-                        }
-                    </select>
-
-            </div>
-        </div>
-        <div class="card-body" id="leaveDetails">
-            <div class="row align-items-center">
-                <div class="col-sm-6">
-                    <div class="mb-4">
-                        <span class="d-block mb-1">Total Leaves</span>
-                        <h4 id="totalLeaves">@Model.TotalLeaves</h4>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="mb-4">
-                        <span class="d-block mb-1">Taken</span>
-                        <h4 id="takenLeaves">@Model.Taken</h4>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="mb-4">
-                        <span class="d-block mb-1">Absent</span>
-                        <h4 id="absentLeaves">@Model.Absent</h4>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="mb-4">
-                        <span class="d-block mb-1">Request</span>
-                        <h4 id="requestedLeaves">@Model.Requests</h4>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="mb-4">
-                        <span class="d-block mb-1">Worked Days</span>
-                        <h4 id="workedDays">@Model.WorkedDays</h4>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="mb-4">
-                        <span class="d-block mb-1">Loss of Pay</span>
-                        <h4 id="lossOfPay">@Model.LossOfPay</h4>
-                    </div>
-                </div>
-                <div class="col-sm-12">
-                    <div>
-                        <a href="~/Common/ApplyLeave" class="btn btn-dark w-100 mt-2">Apply Leave</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-    <script>
-        function applyLeave() {
-            window.location.href = '@Url.Action("ApplyLeave", "Common")'; // Change to your controller/action
-        }
-    </script>
-
-    <div class="col-xl-4 d-flex">
-
-        @* <div class="card">
-        <div class="card-header">
-        <h5 class="card-title">With Indicators</h5>
-        </div>
-        <div class="card-body">
-        <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel">
-        <ol class="carousel-indicators">
-        <li data-bs-target="#carouselExampleIndicators" data-bs-slide-to="0"
-        class="active"></li>
-        <li data-bs-target="#carouselExampleIndicators" data-bs-slide-to="1"></li>
-        <li data-bs-target="#carouselExampleIndicators" data-bs-slide-to="2"></li>
-        </ol>
-        <div class="carousel-inner" role="listbox">
-        <div class="carousel-item active">
-        <div class="card card-bg-5 bg-dark mb-3">
-        @if (TempData["BirthdayWishMessage"] != null)
-        {
-        <div class="alert alert-success">
-        <strong>Message:</strong> @TempData["BirthdayWishMessage"]
-        </div>
-        }
-
-        <div class="card-body">
-        <h5 class="card-title">Birthday Wishes</h5>
-        <ul class="list-group">
-        @foreach (var birthday in ViewBag.MonthlyBirthdays)
-        {
-        <div class="card card-bg-5 bg-dark mb-3">
-        <div class="card-body text-center">
-        <span class="avatar avatar-xl avatar-rounded mb-2">
-        <img src="@Url.Content("~/UploadedImages/" + birthday.ProfilePicture)"
-        class="img-fluid"
-        style="width: 50px; height: 50px; border-radius: 50%;"
-        alt="Img">
-        </span>
-        <h6 class="text-white fw-medium mb-1">@birthday.UserName</h6>
-        <p class="text-white">@birthday.Designation</p>
-        <form method="post" asp-action="SendWishes" asp-controller="Home">
-        <input type="hidden" name="userId" value="@birthday.UserId" />
-        <button type="submit" class="btn btn-sm btn-primary">Send Wishes</button>
-        </form>
-        </div>
-        </div>
-        }
-        </ul>
-        </div>
-
-        </div>
-        </div>
-        </div>
-        <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button"
-        data-bs-slide="prev">
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Previous</span>
-        </a>
-        <a class="carousel-control-next" href="#carouselExampleIndicators" role="button"
-        data-bs-slide="next">
-        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Next</span>
-        </a>
-        </div>
-
-        </div>
-        </div> *@
-
         <div class="card flex-fill border-primary attendance-bg">
             <div class="card-body">
                 <div class="mb-4 text-center">
                     <h6 class="fw-medium text-gray-5 mb-1">Attendance</h6>
-                    <h4>@Model.UserName</h4> <!-- Display the User's Name -->
+                    <h4>@Model.UserName</h4>
                 </div>
-                <div class="attendance-circle-progress attendance-progress mx-auto mb-3">
-                    <div class="water-fill"></div>
-                    <div class="total-work-hours text-center w-100">
-                        <span class="fs-13 d-block mb-1">Total Hours</span>
-                        <h6 id="total-work-hours">00:00:00</h6> <!-- display total work hours -->
+
+                <!-- Progress Circle -->
+                <div class="progress-clock">
+                    <svg class="progress-ring" width="150" height="150">
+                        <circle class="progress-ring__circle-bg" r="70" cx="75" cy="75" />
+                        <circle class="progress-ring__circle" r="70" cx="75" cy="75" />
+                    </svg>
+                    <div class="progress-label">
+                        <span>Total Hours</span>
+                        <h6 id="total-work-hours">00:30:20</h6>
                     </div>
                 </div>
 
-
-
-
+                <!-- Punch Info -->
                 <div class="text-center">
-                    <!-- Punch In Info (Initially Hidden) -->
-                   @*  <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
-                        style="display: @(Model.IsPunchedIn ? "flex" : "none"); gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                        <i class="ti ti-fingerprint text-primary"></i>
-                        <span>Punched In at</span>
-                        <span id="punch-in-time" class="fw-bold">
-                            @Model.PunchInTime?.ToString("hh:mm:ss tt")
-                        </span>
-                    </h6> *@
                     <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
                         style="display: none; gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
                         <i class="ti ti-fingerprint text-primary"></i>
@@ -641,10 +509,10 @@
                         <span id="punch-in-time" class="fw-bold ms-1"></span>
                     </h6>
 
-                    <!-- Work Type Dropdown -->
+                    <!-- Work Type -->
                     <div class="mb-3">
                         <label for="workType" class="form-label fw-medium">Work Type</label>
-                        <select id="workType" class="form-select text-center" style="max-width: 200px; margin: 0 auto;">
+                        <select id="workType" class="form-select text-center mx-auto" style="max-width: 200px;" onchange="onWorkTypeChange(this)">
                             <option value="WFO" selected>WFO</option>
                             <option value="WFH">WFH</option>
                         </select>
@@ -652,8 +520,7 @@
 
                     <!-- Selfie Modal -->
                     <div id="selfieModal" style="display:none; text-align:center; padding: 20px;">
-                        <video id="cameraStream" autoplay playsinline width="300" height="300"
-                               style="border-radius: 10px; border: 2px solid #ccc;"></video>
+                        <video id="cameraStream" autoplay playsinline width="300" height="300" style="border-radius: 10px; border: 2px solid #ccc;"></video>
                         <br />
                         <button onclick="captureSelfie()" class="btn btn-success mt-2">📸 Capture Selfie</button>
                         <canvas id="selfieCanvas" width="300" height="300" style="display:none;"></canvas>
@@ -663,62 +530,127 @@
                     <button id="punchInBtn" onclick="startPunch('in')" class="btn btn-primary">Punch In</button>
                     <button id="punchOutBtn" onclick="startPunch('out')" class="btn btn-danger" style="display:none;">Punch Out</button>
                 </div>
-
-
             </div>
         </div>
-       
-
-    </div>
-    <!-- Punch Info Table -->
-    <div id="punchInfoTable" class="mt-4" style="display: none;">
-        <table class="table table-bordered text-center">
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Selfie</th>
-                    <th>Time</th>
-                    <th>Location</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr id="punchInRow" style="display: none;">
-                    <td>Punch In</td>
-                    <td><img id="punchInSelfie" style="width: 100px; height: auto; border-radius: 8px;" /></td>
-                    <td id="punchInTime"></td>
-                    <td><iframe id="punchInMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
-                </tr>
-                <tr id="punchOutRow" style="display: none;">
-                    <td>Punch Out</td>
-                    <td><img id="punchOutSelfie" style="width: 100px; height: auto; border-radius: 8px;" /></td>
-                    <td id="punchOutTime"></td>
-                    <td><iframe id="punchOutMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
-                </tr>
-            </tbody>
-        </table>
     </div>
 
-    <div class="card bg-warning">
-        <div class="card-body d-flex align-items-center justify-content-between p-3">
-            <div>
-                <h5 class="mb-1">Next Holiday</h5>
-                <p class="text-secondary">@ViewBag.NextHolidayName, @ViewBag.NextHolidayDate</p>
+    <!-- Employee Profile Info -->
+    <div class="col-xl-4 d-flex">
+        <div class="card flex-fill">
+            <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <span class="avatar avatar-lg bg-dark rounded-circle">
+                        <img src="@Url.Content("~/UploadedImages/" + @Model.ProfilePicture)" class="img-fluid" style="width: 50px; height: 50px; border-radius: 50%;" alt="Img">
+                    </span>
+                    <div class="ms-3">
+                        <h5 class="text-white mb-1">@Model.UserName</h5>
+                        <p class="text-white fs-12 mb-0">@Model.Designation</p>
+                    </div>
+                </div>
+                <a href="~/Home/EditUserempdash?userid=@Model.UserId" class="btn btn-icon btn-sm text-white rounded-circle edit-top">
+                    <i class="ti ti-edit"></i>
+                </a>
             </div>
-
-            @if (ViewBag.UserDetails?.userTypeName == "SuperAdmin" || ViewBag.UserDetails?.userTypeName == "Admin" || ViewBag.UserDetails?.userTypeName == "HR")
-            {
-                <a href="@Url.Action("HolidaysList", "Common")" class="btn btn-light btn-sm px-3" aria-label="View all holidays">View All</a>
-            }
-            else if (ViewBag.UserDetails?.userTypeName == "Employee")
-            {
-                <a href="@Url.Action("HolidaysListempdash", "Home")" class="btn btn-light btn-sm px-3" aria-label="View all holidays">View All</a>
-            }
-
+            <div class="card-body">
+                <div class="mb-3">
+                    <span class="d-block mb-1 fs-13">Phone Number</span>
+                    <p class="text-gray-9">@Model.MobileNumber</p>
+                </div>
+                <div class="mb-3">
+                    <span class="d-block mb-1 fs-13">Email Address</span>
+                    <p class="text-gray-9">@Model.Email</p>
+                </div>
+                <div class="mb-3">
+                    <span class="d-block mb-1 fs-13">Employee Id</span>
+                    <p class="text-gray-9">@Model.EmployeeId</p>
+                </div>
+                <div>
+                    <span class="d-block mb-1 fs-13">Joined on</span>
+                    <p class="text-gray-9">@(Model.DateOfJoining?.ToString("yyyy-MM-dd"))</p>
+                </div>
+            </div>
         </div>
     </div>
 
-
+    <!-- Leave Details -->
+    <div class="col-xl-4 d-flex">
+        <div class="card flex-fill">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-2">
+                <h5>Leave Details</h5>
+                <select id="yearDropdown" class="form-control" style="max-width: 120px;">
+                    @for (int i = DateTime.Now.Year; i >= DateTime.Now.Year - 5; i--)
+                    {
+                        <option value="@i" selected="@(i == (ViewBag.SelectedYear ?? DateTime.Now.Year) ? "selected" : null)">
+                            @i
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="card-body" id="leaveDetails">
+                <div class="row">
+                    <div class="col-sm-6 mb-3"><span>Total Leaves</span><h4 id="totalLeaves">@Model.TotalLeaves</h4></div>
+                    <div class="col-sm-6 mb-3"><span>Taken</span><h4 id="takenLeaves">@Model.Taken</h4></div>
+                    <div class="col-sm-6 mb-3"><span>Absent</span><h4 id="absentLeaves">@Model.Absent</h4></div>
+                    <div class="col-sm-6 mb-3"><span>Request</span><h4 id="requestedLeaves">@Model.Requests</h4></div>
+                    <div class="col-sm-6 mb-3"><span>Worked Days</span><h4 id="workedDays">@Model.WorkedDays</h4></div>
+                    <div class="col-sm-6 mb-3"><span>Loss of Pay</span><h4 id="lossOfPay">@Model.LossOfPay</h4></div>
+                    <div class="col-sm-12">
+                        <a href="~/Common/ApplyLeave" class="btn btn-dark w-100 mt-2">Apply Leave</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Punch Info Table -->
+<div id="punchInfoTable" class="mt-4" style="display: none;">
+    <table class="table table-bordered text-center">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Selfie</th>
+                <th>Time</th>
+                <th>Location</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr id="punchInRow" style="display: none;">
+                <td>Punch In</td>
+                <td><img id="punchInSelfie" style="width: 100px; height: auto; border-radius: 8px;" /></td>
+                <td id="punchInTime"></td>
+                <td><iframe id="punchInMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
+            </tr>
+            <tr id="punchOutRow" style="display: none;">
+                <td>Punch Out</td>
+                <td><img id="punchOutSelfie" style="width: 100px; height: auto; border-radius: 8px;" /></td>
+                <td id="punchOutTime"></td>
+                <td><iframe id="punchOutMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card bg-warning">
+    <div class="card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+            <h5 class="mb-1">Next Holiday</h5>
+            <p class="text-secondary">@ViewBag.NextHolidayName, @ViewBag.NextHolidayDate</p>
+        </div>
+
+        @if (ViewBag.UserDetails?.userTypeName == "SuperAdmin" || ViewBag.UserDetails?.userTypeName == "Admin" || ViewBag.UserDetails?.userTypeName == "HR")
+        {
+            <a href="@Url.Action("HolidaysList", "Common")" class="btn btn-light btn-sm px-3" aria-label="View all holidays">View All</a>
+        }
+        else if (ViewBag.UserDetails?.userTypeName == "Employee")
+        {
+            <a href="@Url.Action("HolidaysListempdash", "Home")" class="btn btn-light btn-sm px-3" aria-label="View all holidays">View All</a>
+        }
+
+    </div>
+</div>
+
+
 <div class="row">
     <div class="col-xl-4 d-flex">
         <div class="card card-bg-8 bg-dark mb-3">
@@ -790,9 +722,24 @@
         </div>
     </div>
 </div>
-<script>
-   
-</script>
+<!-- WFH Reason Modal -->
+<div class="modal fade" id="wfhReasonModal" tabindex="-1" aria-labelledby="wfhReasonLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">WFH Reason</h5>
+            </div>
+            <div class="modal-body">
+                <textarea id="wfhReason" class="form-control" rows="4" placeholder="Enter reason for WFH..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitWFHReason()">Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 
 

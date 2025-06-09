@@ -18,6 +18,7 @@
         public double? PunchOutLatitude { get; set; }
         public double? PunchOutLongitude { get; set; }
         public string? PunchOutSelfiePath { get; set; }
+        public string? Reason { get; set; }
         public string? WorkType { get; set; }
         public string? Status { get; set; }
         public string? ScreenShot { get; set; }
@@ -53,6 +54,7 @@
         public double? PunchOutLatitude { get; set; }
         public double? PunchOutLongitude { get; set; }
         public string? WorkType { get; set; }
+        public string? Reason { get; set; }
         public string? PunchOutSelfiePath { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public string? Designation { get; set; }

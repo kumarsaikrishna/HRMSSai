@@ -1,21 +1,22 @@
-﻿using AttendanceCRM.Models;
+﻿using AttendanceCRM.BAL.IServices;
+using AttendanceCRM.Models;
 using AttendanceCRM.Models.DTOS;
 using AttendanceCRM.Models.Entities;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using Newtonsoft.Json;
-using AttendanceCRM.BAL.IServices;
 using AttendanceCRM.Utilities;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using DocumentFormat.OpenXml.Bibliography;
+using MailKit.Search;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
+using System.Diagnostics;
 using System.Drawing;
-using MailKit.Search;
+using System.Globalization;
+using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 
 
@@ -1177,12 +1178,56 @@ namespace AttendanceCRM.Controllers
         }
 
 
+        [HttpGet]
+        public async Task<IActionResult> GetTodayPunchInfo()
+        {
+            var lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
+
+            if (lr == null)
+            {
+                return RedirectToAction("Login", "Authenticate");
+            }
+
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+
+            var punchInfo = await _context.attendanceEntitie
+                .Where(p => p.UserId == lr.userId && p.PunchInTime >= today && p.PunchInTime < tomorrow)
+                .FirstOrDefaultAsync();
+
+            if (punchInfo == null)
+            {
+                return Json(new { success = false });
+            }
+
+            // Generate map centered exactly on the GPS coordinates
+            string GenerateMapUrl(double? lat, double? lng)
+            {
+                return (lat.HasValue && lng.HasValue)
+                    ? $"https://maps.google.com/maps?q={lat.Value.ToString(CultureInfo.InvariantCulture)},{lng.Value.ToString(CultureInfo.InvariantCulture)}&hl=es&z=18&output=embed"
+                    : "";
+            }
+
+            var punchInMapUrl = GenerateMapUrl(punchInfo.Latitude, punchInfo.Longitude);
+            var punchOutMapUrl = GenerateMapUrl(punchInfo.PunchOutLatitude, punchInfo.PunchOutLongitude);
+
+            return Json(new
+            {
+                success = true,
+                punchInTime = punchInfo.PunchInTime?.ToString("hh:mm tt"),
+                punchOutTime = punchInfo.PunchOutTime?.ToString("hh:mm tt"),
+                punchInSelfie = punchInfo.SelfiePath,
+                punchOutSelfie = punchInfo.PunchOutSelfiePath,
+                punchInLocation = punchInMapUrl,
+                punchOutLocation = punchOutMapUrl
+            });
+        }
 
 
 
-   
+
         [HttpPost]
-        public async Task<IActionResult> PunchIn(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude, [FromForm] string WorkType)
+        public async Task<IActionResult> PunchIn(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude, [FromForm] string WorkType, string WFHReason)
         {
             // ✅ Check session
             var lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
@@ -1251,6 +1296,7 @@ namespace AttendanceCRM.Controllers
                 Longitude = longitude,
                 SelfiePath = selfiePath,
                 WorkType=WorkType,
+                Reason= WFHReason,
                 GracePeriodTime = minutesLate,
                 IsActive = true,
                 IsDeleted = false,
@@ -1429,40 +1475,31 @@ namespace AttendanceCRM.Controllers
                 return RedirectToAction("Login", "Authenticate");
             }
 
-            ViewBag.UserId = lr.userId;
             DateTime today = DateTime.Today;
             DateTime now = DateTime.Now;
 
-            // Get the last attendance record for the user
             var attendance = await _context.attendanceEntitie
                 .Where(a => a.UserId == lr.userId)
                 .OrderByDescending(a => a.AttendanceId)
                 .FirstOrDefaultAsync();
 
-            // ✅ If no attendance record exists, allow punch-in
             if (attendance == null)
             {
                 return Ok(new { isPunchedIn = false, canPunchIn = true, totalHours = "00:00:00" });
             }
 
-            bool isPunchedIn = attendance.PunchOutTime == null;
+            bool isToday = attendance.PunchInTime?.Date == today;
+            bool isPunchedIn = attendance.PunchOutTime == null && isToday;
             bool canPunchIn = false;
             TimeSpan totalHours = TimeSpan.Zero;
 
-            DateTime lastPunchInDate = attendance.PunchInTime.Value.Date;
-            DateTime endOfDay = lastPunchInDate.AddHours(23).AddMinutes(59).AddSeconds(59);
-            TimeSpan elapsedTime = now - attendance.PunchInTime.Value;
-
-            // ✅ If last punch-in was on a different day, allow new punch-in
-            if (lastPunchInDate < today)
-            {
-                return Ok(new { isPunchedIn = false, canPunchIn = true, totalHours = "00:00:00" });
-            }
-
-            // ✅ Auto punch-out logic (after 10 hours OR day-end)
+            // Auto punch-out if exceeded time or day ends
             if (isPunchedIn)
             {
-                if (elapsedTime.TotalHours >= 10)
+                TimeSpan elapsed = now - attendance.PunchInTime.Value;
+                DateTime endOfDay = today.AddHours(23).AddMinutes(59).AddSeconds(59);
+
+                if (elapsed.TotalHours >= 10)
                 {
                     attendance.PunchOutTime = attendance.PunchInTime.Value.AddHours(10);
                 }
@@ -1471,7 +1508,6 @@ namespace AttendanceCRM.Controllers
                     attendance.PunchOutTime = endOfDay;
                 }
 
-                // ✅ Update attendance and save
                 if (attendance.PunchOutTime != null)
                 {
                     attendance.ProductionDuration = (int)(attendance.PunchOutTime - attendance.PunchInTime)?.TotalMinutes;
@@ -1485,11 +1521,13 @@ namespace AttendanceCRM.Controllers
                 }
             }
 
-            // ✅ Disable punch-in after punch-out until the next day
-            canPunchIn = !isPunchedIn && attendance.PunchOutTime == null ? false : (lastPunchInDate < today);
+            // Can punch in only if not punched in today
+            canPunchIn = !isToday || (attendance.PunchOutTime != null && !isPunchedIn);
 
-            // ✅ Calculate total work hours
-            totalHours = (attendance.PunchOutTime ?? now) - attendance.PunchInTime.Value;
+            if (isToday)
+            {
+                totalHours = (attendance.PunchOutTime ?? now) - attendance.PunchInTime.Value;
+            }
 
             return Ok(new
             {
