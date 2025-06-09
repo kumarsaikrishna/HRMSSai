@@ -387,10 +387,11 @@ namespace AttendanceCRM.Controllers
 
             // Sort and paginate
             var paginatedLeaves = allAttendanceRecords
-                .OrderByDescending(x => x.CreatedOn)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+       .OrderByDescending(x => x.CreatedOn)
+       .Skip((page - 1) * pageSize)
+       .Take(pageSize)
+       .ToList();
+
 
             // Pagination metadata
             ViewBag.CurrentPage = page;
@@ -416,19 +417,19 @@ namespace AttendanceCRM.Controllers
         public List<AttendanceViewModel> GetAllEmployeesAttendanceRecords(string searchTerm = null)
         {
             var query = (from a in _context.attendanceEntitie
-                           join u in _context.userMasterEntitie on a.UserId equals u.UserId
-                           orderby u.UserName, a.CreatedOn
-                           select new AttendanceViewModel
-                           {
-                               UserId = (int)a.UserId,
-                               UserName = u.UserName,
-                               CreatedOn = a.CreatedOn,
-                               PunchInTime = a.PunchInTime,
-                               PunchOutTime = a.PunchOutTime,
-                               GracePeriodTime = a.GracePeriodTime,
-                               Designation = u.Designation,
-                             
-                           }).ToList();
+                         join u in _context.userMasterEntitie on a.UserId equals u.UserId
+                         orderby a.CreatedOn descending
+                         select new AttendanceViewModel
+                         {
+                             UserId = (int)a.UserId,
+                             UserName = u.UserName,
+                             CreatedOn = a.CreatedOn,
+                             PunchInTime = a.PunchInTime,
+                             PunchOutTime = a.PunchOutTime,
+                             GracePeriodTime = a.GracePeriodTime,
+                             Designation = u.Designation
+                         }).ToList();
+
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
@@ -539,9 +540,18 @@ namespace AttendanceCRM.Controllers
             }
 
             // Query attendance records based on the selected filter
-            var records = _context.attendanceEntitie
-                .Join(_context.userMasterEntitie, a => a.UserId, u => u.UserId, (a, u) => new { a, u })
-                .Where(x => x.a.PunchInTime >= start && x.a.PunchInTime <= end)
+            var query = _context.attendanceEntitie
+             .Join(_context.userMasterEntitie, a => a.UserId, u => u.UserId, (a, u) => new { a, u })
+             .Where(x => x.a.PunchInTime >= start && x.a.PunchInTime <= end);
+
+            // Apply filter before materializing the list
+            if (userId.HasValue && userId > 0)
+            {
+                query = query.Where(x => x.a.UserId == userId.Value);
+            }
+
+            var records = query
+                .OrderBy(x => x.a.CreatedOn)
                 .Select(x => new AttendanceViewModel
                 {
                     UserId = (int)x.a.UserId,
@@ -551,13 +561,8 @@ namespace AttendanceCRM.Controllers
                     PunchOutTime = x.a.PunchOutTime,
                     GracePeriodTime = x.a.GracePeriodTime,
                     Designation = x.u.Designation,
-                });
-
-            // If a specific user is selected, filter by UserId
-            if (userId.HasValue && userId > 0)
-            {
-                records = records.Where(r => r.UserId == userId);
-            }
+                })
+                .ToList();
 
             return PartialView("_AttendanceTable", records.ToList()); // Return partial view with updated data
         }
