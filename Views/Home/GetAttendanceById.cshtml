@@ -1,167 +1,183 @@
 ﻿@model IEnumerable<AttendanceCRM.Models.Entities.AttendanceEntitie>
- 
 
 @{
-    int rCnt = 1;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var rCnt = 1;
 }
-<script>
-    $(document).ready(function () {
-        $("#applyFilterBtn").click(function () {
-            var month = $("#monthFilter").val();
-            var year = $("#yearFilter").val();
-            var startDate = $("#startDate").val();
-            var endDate = $("#endDate").val();
 
-            if (startDate && endDate) {
-                // Apply Custom Date Range Filter
-                window.location.href = "/Home/GetAttendanceById?startDate=" + startDate + "&endDate=" + endDate;
-            } else if (month && year) {
-                // Apply Month & Year Filter
-                window.location.href = "/Home/GetAttendanceById?month=" + month + "&year=" + year;
-            } else {
-                alert("Please select either Month & Year OR Start & End Date.");
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-end mb-3">
+        <button id="applyFilterBtn" class="btn btn-primary">Apply Filter</button>
+        <select id="monthFilter" class="form-select w-auto mx-2">
+            <option value="">Month</option>
+            @for (int m = 1; m <= 12; m++)
+            {
+                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+            }
+        </select>
+        <select id="yearFilter" class="form-select w-auto">
+            <option value="">Year</option>
+            @for (int y = DateTime.Now.Year; y >= 2020; y--)
+            {
+                <option value="@y">@y</option>
+            }
+        </select>
+    </div>
+    <div id="attendanceCalendar" style="margin-top: 20px;"></div>
+</div>
+
+<!-- Punch Info Modal -->
+<div id="punchInfoModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Punch Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-bordered text-center">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Selfie</th>
+                            <th>Time</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="punchInRow" style="display: none;">
+                            <td>Punch In</td>
+                            <td><img id="punchInSelfie" class="img-fluid" style="width: 100px; border-radius: 8px;" /></td>
+                            <td id="punchInTime"></td>
+                            <td><iframe id="punchInMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
+                        </tr>
+                        <tr id="punchOutRow" style="display: none;">
+                            <td>Punch Out</td>
+                            <td><img id="punchOutSelfie" class="img-fluid" style="width: 100px; border-radius: 8px;" /></td>
+                            <td id="punchOutTime"></td>
+                            <td><iframe id="punchOutMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendarEl = document.getElementById('attendanceCalendar');
+        const events = [];
+
+        @foreach (var item in Model)
+        {
+                var status = item.PunchOutTime == null ? "Forgot to Punch Out" : item.TotalHours < 4 ? "Absent" : item.TotalHours < 8.5 ? "Half Day" : "Present";
+                var title = $"{status} - {item.TotalHours} hrs ({item.WorkType})";
+                var color = item.PunchOutTime == null ? "#6c757d" : item.WorkType == "WFH" ? "#007bff" : item.WorkType == "WFO" ? "#28a745" : "#ffc107";
+
+                <text>
+                events.push({
+                    title: "@title",
+                    start: "@item.CreatedOn",
+                    color: "@color",
+                    extendedProps: {
+                        punchIn: "@(item.PunchInTime?.ToString("HH:mm") ?? "-")",
+                        punchOut: "@(item.PunchOutTime?.ToString("HH:mm") ?? "-")",
+                        workType: "@item.WorkType"
+                    }
+                });
+                </text>
+        }
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: ''
+            },
+            events: events,
+            eventClick: function (info) {
+                Swal.fire({
+                    title: info.event.title,
+                    html: `<strong>Punch In:</strong> ${info.event.extendedProps.punchIn}<br>
+                           <strong>Punch Out:</strong> ${info.event.extendedProps.punchOut}<br>
+                           <strong>Work Type:</strong> ${info.event.extendedProps.workType}`,
+                    icon: 'info'
+                });
+            },
+            dateClick: function (info) {
+                $('#punchInfoModal').modal('show');
+                populatePunchDetails(info.dateStr);
             }
         });
 
+        calendar.render();
 
-
-        function debounce(func, timeout = 300) {
-                let timer;
-                return (...args) => {
-                    clearTimeout(timer);
-                    timer = setTimeout(() => { func.apply(this, args); }, timeout);
-                };
+        $('#applyFilterBtn').click(function () {
+            const month = $('#monthFilter').val();
+            const year = $('#yearFilter').val();
+            if (month && year) {
+                window.location.href = `/Home/GetAttendanceById?month=${month}&year=${year}`;
+            } else {
+                alert("Please select both Month and Year.");
             }
-
-            // Search functionality
-            const performSearch = debounce(function() {
-                var searchTerm = $("#filterInput").val().trim();
-
-                $.ajax({
-                     url: "@Url.Action("GetAttendanceById", "Home")",
-                    type: "GET",
-                    data: {
-                        searchTerm: searchTerm,
-                        page: 1
-                    },
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest"
-                    },
-                    success: function(result) {
-                        // Replace table body correctly
-                          $("#leaveTable").html(result);
-                    },
-                    error: function() {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Search Error',
-                            text: 'Unable to perform search. Please try again.'
-                        });
-                    }
-                });
-            });
-
-            // Attach search handler
-            $("#filterInput").on("input", performSearch);
-
+        });
     });
+
+    function populatePunchDetails(dateStr) {
+        $.ajax({
+            url: '/Home/GetPunchDetails',
+            type: 'GET',
+            data: { date: dateStr },
+            success: function (data) {
+                if (data.punchIn) {
+                    $('#punchInRow').show();
+                    $('#punchInSelfie').attr('src', data.punchIn.selfieUrl);
+                    $('#punchInTime').text(data.punchIn.time);
+                    $('#punchInMap').attr('src', `https://maps.google.com/maps?q=${data.punchIn.lat},${data.punchIn.lng}&hl=es;z=14&output=embed`);
+                } else {
+                    $('#punchInRow').hide();
+                }
+
+                if (data.punchOut) {
+                    $('#punchOutRow').show();
+                    $('#punchOutSelfie').attr('src', data.punchOut.selfieUrl);
+                    $('#punchOutTime').text(data.punchOut.time);
+                    $('#punchOutMap').attr('src', `https://maps.google.com/maps?q=${data.punchOut.lat},${data.punchOut.lng}&hl=es;z=14&output=embed`);
+                } else {
+                    $('#punchOutRow').hide();
+                }
+            },
+            error: function () {
+                alert('Failed to load punch details.');
+            }
+        });
+    }
 </script>
 
-<div class="row">
-    <!-- Month & Year Filter -->
-    <div class="col-sm-2">
-        <label>Select Month:</label>
-        <select id="monthFilter" class="form-control">
-            <option value="">Month</option>
-            @for (int i = 1; i <= 12; i++)
-            {
-                <option value="@i">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i)</option>
-            }
-        </select>
-    </div>
+<style>
+    .fc-daygrid-event {
+        font-size: 0.85em;
+        padding: 4px 6px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
 
-    <div class="col-sm-2">
-        <label>Select Year:</label>
-        <select id="yearFilter" class="form-control">
-            <option value="">Year</option>
-            @for (int i = DateTime.Now.Year; i >= DateTime.Now.Year - 5; i--)
-            {
-                <option value="@i">@i</option>
-            }
-        </select>
-    </div>
+    .fc-daygrid-day-frame {
+        position: relative;
+        min-height: 90px;
+    }
 
-    <!-- Custom Date Range Filter -->
-    <div class="col-sm-2">
-        <label>Start Date:</label>
-        <input type="date" id="startDate" class="form-control">
-    </div>
-
-    <div class="col-sm-2">
-        <label>End Date:</label>
-        <input type="date" id="endDate" class="form-control">
-    </div>
-
-    <div class="col-sm-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" id="applyFilterBtn">Apply</button>
-    </div>
-</div>
-<hr />
-
-<!-- Page Content -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5>Attendance List</h5>
-        <div class="search-container">
-            <input type="text" id="filterInput" class="form-control" placeholder="Search By Name" />
-        </div>
-
-    </div>
-
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-striped" id="leaveTable">
-                <!-- Table will be populated by partial view -->
-                <partial name="_Attendance" model="Model" />
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="card-footer d-flex justify-content-between align-items-center">
-            <div class="pagination-info">
-                Showing @((ViewBag.CurrentPage - 1) * ViewBag.PageSize + 1) to
-                @(Math.Min(ViewBag.CurrentPage * ViewBag.PageSize, ViewBag.TotalItems)) of
-                @ViewBag.TotalItems entries
-            </div>
-
-            <nav>
-                <ul class="pagination mb-0">
-                    @{
-                        int currentPage = ViewBag.CurrentPage;
-                        int totalPages = ViewBag.TotalPages;
-                        int startPage = Math.Max(1, currentPage - 2);
-                        int endPage = Math.Min(totalPages, startPage + 4); // Ensure only 5 pages are displayed
-                    }
-
-                    <!-- Previous Button -->
-                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                        <a class="page-link" href="@Url.Action("GetAttendanceById", new { page = currentPage - 1, searchTerm = ViewBag.SearchTerm })">Previous</a>
-                    </li>
-
-                    <!-- Page Numbers -->
-                    @for (int i = startPage; i <= endPage; i++)
-                    {
-                        <li class="page-item @(i == currentPage ? "active" : "")">
-                            <a class="page-link" href="@Url.Action("GetAttendanceById", new { page = i, searchTerm = ViewBag.SearchTerm })">@i</a>
-                        </li>
-                    }
-
-                    <!-- Next Button -->
-                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                        <a class="page-link" href="@Url.Action("GetAttendanceById", new { page = currentPage + 1, searchTerm = ViewBag.SearchTerm })">Next</a>
-                    </li>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</div>
+    .fc .fc-daygrid-day-number {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        z-index: 4;
+    }
+</style>

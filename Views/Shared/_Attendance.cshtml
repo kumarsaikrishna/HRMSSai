@@ -22,7 +22,16 @@
             <td>
                 @(rCnt++)
             </td>
-            <td>@(record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-")</td>
+            <td>
+                <a href="#" class="punch-details-link"
+                   data-userid="@record.UserId"
+                   data-date="@record.CreatedOn?.ToString("yyyy-MM-dd")"
+                   style="color: blue; text-decoration: underline;">
+                    @(record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-")
+                </a>
+            </td>
+
+
 
             <td>@record.PunchInTime?.ToString("hh:mm tt")</td>
             <td>@record.PunchOutTime?.ToString("hh:mm tt")</td>

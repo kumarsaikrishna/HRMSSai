@@ -4,6 +4,8 @@ using AttendanceCRM.Models.DTOS;
 using AttendanceCRM.Models.Entities;
 using AttendanceCRM.Utilities;
 using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.InkML;
+using DocumentFormat.OpenXml.Spreadsheet;
 using MailKit.Search;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -567,10 +569,37 @@ namespace AttendanceCRM.Controllers
             return PartialView("_AttendanceTable", records.ToList()); // Return partial view with updated data
         }
 
+        public IActionResult GetPunchDetails(string date)
+        {
+            DateTime targetDate = DateTime.Parse(date);
+            var attendance = _context.attendanceEntitie
+                .FirstOrDefault(a => a.CreatedOn == targetDate.Date);
 
+            if (attendance == null)
+                return Json(new { success = false });
+
+            return Json(new
+            {
+                success = true,
+                punchIn = attendance.PunchInTime.HasValue ? new
+                {
+                    time = attendance.PunchInTime.Value.ToString("hh:mm tt"),
+                    selfieUrl = Url.Content($"~/UploadedImages/{attendance.SelfiePath}"),
+                    lat = attendance.Latitude,
+                    lng = attendance.Longitude
+                } : null,
+                punchOut = attendance.PunchOutTime.HasValue ? new
+                {
+                    time = attendance.PunchOutTime.Value.ToString("hh:mm tt"),
+                    selfieUrl = Url.Content($"~/UploadedImages/{attendance.PunchOutSelfiePath}"),
+                    lat = attendance.PunchOutLatitude,
+                    lng = attendance.PunchOutLongitude
+                } : null
+            });
+        }
 
         [Authorize(Policy = "EmployeeAccess")]
-        public IActionResult GetAttendanceById(int? month, int? year, DateTime? startDate, DateTime? endDate, string searchTerm, int page = 1, int pageSize = 10)
+        public IActionResult GetAttendanceById(int? month, int? year, int page = 1, int pageSize = 10)
         {
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
             if (lr == null)
@@ -587,27 +616,17 @@ namespace AttendanceCRM.Controllers
             }
 
             // Get filtered attendance records directly
-            var attendanceRecords = GetAttendanceByUserId(lr.userId, month, year, startDate, endDate);
+            var attendanceRecords = GetAttendanceByUserId(lr.userId, month, year);
 
             if (!attendanceRecords.Any())
             {
                 ViewBag.Message = "No attendance records found.";
             }
 
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                searchTerm = searchTerm.ToLower().Trim();
-                attendanceRecords = attendanceRecords.Where(x =>
-                   (x.CreatedOn?.ToString("yyyy-MM-dd") ?? "").ToLower().Contains(searchTerm) ||
-                    (x.Status ?? "").ToLower().Contains(searchTerm) ||
-                    (x.PunchInTime?.ToString("hh\\:mm") ?? "").ToLower().Contains(searchTerm) ||
-                    (x.PunchOutTime?.ToString("hh\\:mm") ?? "").ToLower().Contains(searchTerm) ||
-                    (x.GracePeriodTime?.ToString("hh\\:mm") ?? "").ToLower().Contains(searchTerm)
-                ).ToList();
-            }
+        
 
-            // Sort and paginate
-            var paginatedLeaves = attendanceRecords
+        // Sort and paginate
+        var paginatedLeaves = attendanceRecords
                 .OrderByDescending(x => x.CreatedOn)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -618,7 +637,6 @@ namespace AttendanceCRM.Controllers
             ViewBag.PageSize = pageSize;
             ViewBag.TotalItems = attendanceRecords.Count();
             ViewBag.TotalPages = (int)Math.Ceiling((double)attendanceRecords.Count() / pageSize);
-            ViewBag.SearchTerm = searchTerm;
 
             // Check if it's an AJAX request
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
@@ -637,10 +655,7 @@ namespace AttendanceCRM.Controllers
         public List<AttendanceEntitie> GetAttendanceByUserId(
       int userId,
       int? month = null,
-      int? year = null,
-      DateTime? startDate = null,
-      DateTime? endDate = null,
-      string searchTerm = null
+      int? year = null
   )
         {
             DateTime today = DateTime.Today;
@@ -649,17 +664,6 @@ namespace AttendanceCRM.Controllers
             DateTime defaultStartDate = today.AddDays(-7);
             DateTime defaultEndDate = today;
 
-            if (startDate.HasValue && endDate.HasValue)
-            {
-                defaultStartDate = startDate.Value;
-                defaultEndDate = endDate.Value > today ? today : endDate.Value;
-            }
-            else if (month.HasValue && year.HasValue)
-            {
-                defaultStartDate = new DateTime(year.Value, month.Value, 1);
-                defaultEndDate = new DateTime(year.Value, month.Value, DateTime.DaysInMonth(year.Value, month.Value));
-                defaultEndDate = defaultEndDate > today ? today : defaultEndDate;
-            }
 
             _context.ChangeTracker.Clear();
 
@@ -709,18 +713,7 @@ namespace AttendanceCRM.Controllers
                 }
             }
 
-            // ✅ Search across all fields (case-insensitive)
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                searchTerm = searchTerm.ToLower();
-                result = result.Where(x =>
-                    (x.CreatedOn?.ToString("yyyy-MM-dd") ?? "").ToLower().Contains(searchTerm) ||
-                    (x.Status ?? "").ToLower().Contains(searchTerm) ||
-                    (x.PunchInTime?.ToString("hh\\:mm") ?? "").ToLower().Contains(searchTerm) ||
-                    (x.PunchOutTime?.ToString("hh\\:mm") ?? "").ToLower().Contains(searchTerm) ||
-                    (x.GracePeriodTime?.ToString("hh\\:mm") ?? "").ToLower().Contains(searchTerm)
-                ).ToList();
-            }
+        
 
             return result;
         }
@@ -997,6 +990,44 @@ namespace AttendanceCRM.Controllers
             return View(leaveList);
         }
 
+        [HttpGet]
+        public IActionResult GetPunchDetails( DateTime date)
+        {
+            LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
+            if (lr == null)
+            {
+                return RedirectToAction("Login", "Authenticate");
+            }
+            var nextDate = date.Date.AddDays(1);
+
+            var punches = _context.attendanceEntitie
+                .Where(x => x.UserId == lr.userId && x.CreatedOn >= date.Date && x.CreatedOn < nextDate)
+                .FirstOrDefault();
+
+            if (punches == null)
+                return Json(new { punchIn = (object)null, punchOut = (object)null });
+
+            var result = new
+            {
+                punchIn = punches.PunchInTime != null ? new
+                {
+                    time = punches.PunchInTime.Value.ToString("hh:mm tt"),
+                    selfieUrl = punches.SelfiePath,
+                    lat = punches.Latitude,
+                    lng = punches.Longitude
+                } : null,
+
+                punchOut = punches.PunchOutTime != null ? new
+                {
+                    time = punches.PunchOutTime.Value.ToString("hh:mm tt"),
+                    selfieUrl = punches.PunchOutSelfiePath,
+                    lat = punches.PunchOutLatitude,
+                    lng = punches.PunchOutLongitude
+                } : null
+            };
+
+            return Json(result);
+        }
 
 
         public IActionResult PresentToday()
@@ -1416,7 +1447,7 @@ namespace AttendanceCRM.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> PunchOut(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude)
+        public async Task<IActionResult> PunchOut(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude,string TotalHours)
         {
             // Get logged in user from session
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
@@ -1455,6 +1486,7 @@ namespace AttendanceCRM.Controllers
             attendance.PunchOutLongitude = longitude;
             attendance.PunchOutSelfiePath = selfiePath;
             attendance.PunchOutTime = DateTime.Now;
+            attendance.TotalHours =Convert.ToDouble(TotalHours);
             attendance.ProductionDuration = (int)(attendance.PunchOutTime - attendance.PunchInTime)?.TotalMinutes;
             attendance.UpdatedOn = DateTime.Now;
             attendance.UpdatedBy = lr.userId;

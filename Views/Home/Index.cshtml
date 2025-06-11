@@ -100,7 +100,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         checkAttendanceStatus();
-        fetchWorkHours();
+        // fetchWorkHours();
 
         const punchInTime = localStorage.getItem("punchInTime");
         if (punchInTime) {
@@ -336,35 +336,35 @@
         }, 1000);
     }
 
-    function fetchWorkHours() {
-        fetch('/Home/CalculateWorkHours')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("total-hours-today").innerText = data.totalWorkHoursToday || "00:00:00";
-                document.getElementById("total-hours-week").innerText = data.totalWorkHoursWeek || "00:00:00";
-            })
-            .catch(err => console.error("Work hours fetch error:", err));
-    }
+    // function fetchWorkHours() {
+    //     fetch('/Home/CalculateWorkHours')
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             document.getElementById("total-hours-today").innerText = data.totalWorkHoursToday || "00:00:00";
+    //             document.getElementById("total-hours-week").innerText = data.totalWorkHoursWeek || "00:00:00";
+    //         })
+    //         .catch(err => console.error("Work hours fetch error:", err));
+    // }
 
-        function setProgress(timeString) {
-        const circle = document.querySelector('.progress-ring__circle');
-        const radius = circle.r.baseVal.value;
-        const circumference = 2 * Math.PI * radius;
+    //     function setProgress(timeString) {
+    //     const circle = document.querySelector('.progress-ring__circle');
+    //     const radius = circle.r.baseVal.value;
+    //     const circumference = 2 * Math.PI * radius;
 
-        circle.style.strokeDasharray = `${circumference} ${circumference}`;
-        circle.style.strokeDashoffset = circumference;
+    //     circle.style.strokeDasharray = `${circumference} ${circumference}`;
+    //     circle.style.strokeDashoffset = circumference;
 
-        const [hh, mm, ss] = timeString.split(":").map(Number);
-        const totalSeconds = hh * 3600 + mm * 60 + ss;
-        const maxSeconds = 9 * 3600; // 9 hours
+    //     const [hh, mm, ss] = timeString.split(":").map(Number);
+    //     const totalSeconds = hh * 3600 + mm * 60 + ss;
+    //     const maxSeconds = 9 * 3600; // 9 hours
 
-        const percent = Math.min(totalSeconds / maxSeconds, 1);
-        const offset = circumference - percent * circumference;
-        circle.style.strokeDashoffset = offset;
-    }
+    //     const percent = Math.min(totalSeconds / maxSeconds, 1);
+    //     const offset = circumference - percent * circumference;
+    //     circle.style.strokeDashoffset = offset;
+    // }
 
-    // Set from JS (can bind to timer too)
-    setProgress("00:30:20");
+    // // Set from JS (can bind to timer too)
+    // setProgress("00:30:20");
 </script>
 <script>
     $(document).ready(function () {
