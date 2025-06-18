@@ -64,11 +64,11 @@
                 $("#startDate, #endDate").prop("disabled", false);
             } else {
                 $("#startDate, #endDate").prop("disabled", true);
-                filterAttendance(); 
+                filterAttendance();
             }
         });
 
-        
+
         $("input[name='dateFilter']").change(filterAttendance);
         $("#startDate, #endDate, #userId").change(filterAttendance);
 
@@ -91,11 +91,11 @@
             });
         }
 
-        let today = new Date().toISOString().split('T')[0]; 
+        let today = new Date().toISOString().split('T')[0];
         $("#daily").prop("checked", true);
         $("#startDate").val(today);
         $("#endDate").val(today);
-        filterAttendance(); 
+        filterAttendance();
     });
 
 
@@ -159,10 +159,10 @@
                 <input type="date" id="startDate" class="form-control me-2" disabled>
                 <input type="date" id="endDate" class="form-control me-2" disabled>
 
-              @*   <div class="col-sm-4">
+                @*   <div class="col-sm-4">
                     <button class="btn btn-primary" id="filterBtn">Apply</button>
                 </div> *@
-                
+
                 <div class="col-sm-0 d-flex justify-content-end">
                     <button class="btn btn-primary text-nowrap" onclick="downloadExcel()">Download Excel</button>
                 </div>
@@ -184,15 +184,11 @@
                 <tr>
                     <th>SNo</th>
                     <th>Employee Name</th>
-                    <th>Date</th>
                     <th>Designation</th>
-                    <th>Punch In</th>
-                    <th>Punch Out</th>
-                    <th>Late</th>
-                    <th>Status</th>
+                    <th>Email</th>
                 </tr>
             </thead>
-       @*      <tbody id="attendanceBody">
+            @*      <tbody id="attendanceBody">
                 @foreach (var record in Model)
                 {
                     <tr>
@@ -217,4 +213,44 @@
         </table>
     </div>
 </div>
+<div class="modal fade" id="punchDetailsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Punch Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="punchDetailsBody">
+                <!-- Details loaded via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).on("click", ".employee-link", function (e) {
+        e.preventDefault();
 
+        var userId = $(this).data("userid");
+        var filterType = $("input[name='dateFilter']:checked").val();
+        var startDate = $("#startDate").val();
+        var endDate = $("#endDate").val();
+
+        $.ajax({
+            url: "/Common/GetPunchDetails",
+            type: "GET",
+            data: {
+                userId: userId,
+                filterType: filterType,
+                startDate: startDate,
+                endDate: endDate
+            },
+            success: function (html) {
+                $("#punchDetailsBody").html(html);
+                $("#punchDetailsModal").modal("show");
+            },
+            error: function (xhr, status, error) {
+                console.error("Failed to load punch details:", error);
+            }
+        });
+    });
+</script>

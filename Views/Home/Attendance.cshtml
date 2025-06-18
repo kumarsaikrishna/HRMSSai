@@ -1,261 +1,61 @@
-﻿ @model AttendanceCRM.Models.DTOS.AttendanceViewModel
-  
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        checkAttendanceStatus(); 
-    });
+﻿@model List<AttendanceCRM.Models.DTOS.AttendanceViewModel>
 
-    function punchIn() {
-        fetch('/Home/PunchIn', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) {
-                    alert(data.message);
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-                    document.getElementById("punch-in-btn").style.display = "none";
-                    document.getElementById("punch-out-btn").style.display = "block";
-                    document.getElementById("punch-in-time").innerText = formatTime(new Date());
-                    document.getElementById("punch-in-info").style.display = "block";
+<div class="container mt-4">
+    <h4 class="mb-4">Attendance Calendar</h4>
+    <div id="attendanceCalendar"></div>
 
-                    checkAttendanceStatus();  
-                }
-            })
-            .catch(error => console.error("Error:", error));
-    }
-
-    function punchOut() {
-        fetch('/Home/PunchOut', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) {
-                    alert(data.message);
-
-                    document.getElementById("punch-in-btn").style.display = "block";
-                    document.getElementById("punch-out-btn").style.display = "none";
-
-                    checkAttendanceStatus();  
-                }
-            })
-            .catch(error => console.error("Error:", error));
-    }
-
-    function checkAttendanceStatus() {
-        fetch('/Home/GetAttendanceStatus', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                const now = new Date();
-                const punchInDate = data.punchInTime ? new Date(data.punchInTime) : null;
-
-                if (!punchInDate || now.toDateString() !== punchInDate.toDateString()) {
-                    // ✅ If no punch-in today, allow new punch-in
-                    document.getElementById("punch-in-btn").style.display = "block";
-                    document.getElementById("punch-out-btn").style.display = "none";
-                    document.getElementById("punch-in-info").style.display = "none";
-                }
-                else if (data.isPunchedIn) {
-                    // ✅ Show Punch Out button if already punched in today
-                    document.getElementById("punch-in-btn").style.display = "none";
-                    document.getElementById("punch-out-btn").style.display = "block";
-                    document.getElementById("punch-in-info").style.display = "block";
-                    document.getElementById("punch-in-time").innerText = formatTime(punchInDate);
-                }
-                else {
-                    // ✅ Show Punch In button after punch-out
-                    document.getElementById("punch-in-btn").style.display = "block";
-                    document.getElementById("punch-out-btn").style.display = "none";
-                    document.getElementById("punch-in-info").style.display = "none";
-                }
-
-                // ✅ Update total work hours display
-                document.getElementById("total-work-hours").innerText = data.totalHours || "00:00:00";
-            })
-            .catch(error => console.error("Error:", error));
-    }
-
-    // Run the check every minute
-    setInterval(checkAttendanceStatus, 60000);
-
-
-
-
-    // function checkAttendanceStatus() {
-    //     fetch('/Home/GetAttendanceStatus', {
-    //         method: 'GET',
-    //         headers: {
-    //             'Content-Type': 'application/json'
-    //         }
-    //     })
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             if (data.isPunchedIn) {
-    //                 document.getElementById("punch-in-btn").style.display = "none";
-    //                 document.getElementById("punch-out-btn").style.display = "block";
-    //                 document.getElementById("punch-in-info").style.display = "block";
-    //                 document.getElementById("punch-in-time").innerText = formatTime(new Date(data.punchInTime));
-    //             } else {
-    //                 document.getElementById("punch-in-btn").style.display = "block";
-    //                 document.getElementById("punch-out-btn").style.display = "none";
-    //                 document.getElementById("punch-in-info").style.display = "none";
-    //             }
-
-    //             document.getElementById("total-work-hours").innerText = data.totalHours || "00:00:00";
-    //         })
-    //         .catch(error => console.error("Error:", error));
-    // }
-
-    function formatTime(date) {
-        let hours = date.getHours().toString().padStart(2, '0');
-        let minutes = date.getMinutes().toString().padStart(2, '0');
-        let seconds = date.getSeconds().toString().padStart(2, '0');
-        return `${hours}:${minutes}:${seconds}`;
-    }
-     
-</script>
-
-
-
-
-  <div class="col-xl-4 d-flex">
-					<div class="card position-relative flex-fill">
-						<div class="card-header bg-dark">
-							<div class="d-flex align-items-center">
-								<span class="avatar avatar-lg avatar-rounded border border-white border-2 flex-shrink-0 me-2">
-                    <img src="@Model.ProfilePicture" alt="Img">
-								</span>
-								<div>
-                    <h5 class="text-white mb-1">@Model.UserName</h5>
-									<div class="d-flex align-items-center">
-                        <p class="text-white fs-12 mb-0">@Model.Designation</p>
-										@* <span class="mx-1"><i class="ti ti-point-filled text-primary"></i></span> *@
-										@* <p class="fs-12">UI/UX Design</p> *@
-									</div>
-								</div>
-							</div>
-							<a href="#" class="btn btn-icon btn-sm text-white rounded-circle edit-top"><i class="ti ti-edit"></i></a>
-						</div>
-						<div class="card-body">
-							<div class="mb-3">
-								<span class="d-block mb-1 fs-13">Phone Number</span>
-                <p class="text-gray-9">@Model.MobileNumber</p>
-							</div>
-							<div class="mb-3">
-								<span class="d-block mb-1 fs-13">Email Address</span>
-                <p class="text-gray-9"><a class="__cf_email__">@Model.Email</a></p>
-							</div>
-							<div class="mb-3">
-                <span class="d-block mb-1 fs-13">EmployeeId</span>
-                <p class="text-gray-9">@Model.EmployeeId</p>
-							</div>
-							<div>
-								<span class="d-block mb-1 fs-13">Joined on</span>
-                <p class="text-gray-9">@Model.DateOfJoining</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-<div class="col-xl-4 d-flex">
-    <div class="card flex-fill border-primary attendance-bg">
-        <div class="card-body">
-            <div class="mb-4 text-center">
-                <h6 class="fw-medium text-gray-5 mb-1">Attendance</h6>
-                <h4>@Model.UserName</h4> <!-- Display the User's Name -->
-            </div>
-            <div class="attendance-circle-progress attendance-progress mx-auto mb-3">
-                <div class="total-work-hours text-center w-100">
-                    <span class="fs-13 d-block mb-1">Total Hours</span>
-                    <h6 id="total-work-hours">@Model.TotalWorkHours</h6> <!-- Display Total Work Hours -->
-                </div>
-            </div>
-            <div class="text-center">
-                <!-- Punch In Info (Initially Hidden) -->
-                <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
-                    style="display: @(Model.IsPunchedIn ? "flex" : "none");">
-                    <i class="ti ti-fingerprint text-primary me-1"></i>
-                    Punched In at <span id="punch-in-time">@Model.PunchInTime?.ToString("HH:mm:ss")</span>
-                </h6>
-
-                <!-- Punch In Button -->
-                <button type="submit" class="btn btn-primary w-100" id="punch-in-btn"
-                        style="display: @(Model.IsPunchedIn ? "none" : "block");" onclick="punchIn()">
-                    Punch In
-                </button>
-
-                <!-- Punch Out Button -->
-                <button type="submit" class="btn btn-danger w-100" id="punch-out-btn"
-                        style="display: @(Model.IsPunchedIn ? "block" : "none");" onclick="punchOut()">
-                    Punch Out
-                </button>
-
-            </div>
-        </div>
+    <!-- Legend -->
+    <div class="mt-4">
+        <h6>Legend:</h6>
+        <ul class="list-inline">
+            <li class="list-inline-item"><span style="background:red;"></span> LOP / Absent</li>
+            <li class="list-inline-item"><span style="background:gray;"></span> Missed Punch</li>
+            <li class="list-inline-item"><span style="background:yellow;"></span> Half Day (&lt;8.5 hrs)</li>
+            <li class="list-inline-item"><span style="background:green;"></span> Full Day (WFO)</li>
+            <li class="list-inline-item"><span style="background:blue;"></span> Leave (Approved)</li>
+        </ul>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+<script>
+      const eventsData = @Html.Raw(ViewBag.CalendarEvents ?? "[]");
+    // ensure it's raw, not encoded
 
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendar = new FullCalendar.Calendar(document.getElementById('attendanceCalendar'), {
+            initialView: 'dayGridMonth',
+            height: 650,
+            events: eventsData, // use parsed object
+            eventDidMount: function (info) {
+                new bootstrap.Tooltip(info.el, {
+                    title: info.event.title,
+                    placement: 'top',
+                    trigger: 'hover',
+                    container: 'body'
+                });
+            }
+        });
 
+        calendar.render();
+    });
+</script>
 
-<div class="col-xl-8 d-flex">
-    <div class="row flex-fill">
-        <div class="col-xl-3 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="border-bottom mb-3 pb-2">
-                        <span class="avatar avatar-sm bg-primary mb-2"><i class="ti ti-clock-stop"></i></span>
-                        <h2 class="mb-2" id="total-hours-today">
-                            @ViewBag.TotalWorkHoursToday.ToString("0.00") / <span class="fs-20 text-gray-5"> 9</span>
-                        </h2>
-                        <p class="fw-medium text-truncate">Total Hours Today</p>
-                    </div>
-                    <div>
-                        <p class="d-flex align-items-center fs-13">
-                            <span class="avatar avatar-xs rounded-circle bg-success flex-shrink-0 me-2">
-                                <i class="ti ti-arrow-up fs-12"></i>
-                            </span>
-                            <span>5% This Week</span>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="border-bottom mb-3 pb-2">
-                        <span class="avatar avatar-sm bg-dark mb-2"><i class="ti ti-clock-up"></i></span>
-                        <h2 class="mb-2" id="total-hours-week">
-                            @ViewBag.TotalWorkHoursWeek.ToString("0.00") / <span class="fs-20 text-gray-5"> 40</span>
-                        </h2>
-                        <p class="fw-medium text-truncate">Total Hours Week</p>
-                    </div>
-                    <div>
-                        <p class="d-flex align-items-center fs-13">
-                            <span class="avatar avatar-xs rounded-circle bg-success flex-shrink-0 me-2">
-                                <i class="ti ti-arrow-up fs-12"></i>
-                            </span>
-                            <span>7% Last Week</span>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-     </div>
-</div>
+<style>
+    .fc .fc-daygrid-day-number {
+        padding: 4px;
+    }
 
-
+    .list-inline-item span {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        margin-right: 5px;
+        border-radius: 3px;
+    }
+</style>

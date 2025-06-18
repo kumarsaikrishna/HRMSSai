@@ -94,278 +94,284 @@
             color: #000;
         }
 </style>
+<style>
+    .notepad-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        width: 400px;
+        max-width: 90vw;
+        z-index: 1050;
+        display: none;
+    }
+
+    .notepad-header {
+        background: #007bff;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 6px 6px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notepad-body {
+        padding: 16px;
+    }
+
+    .notepad-textarea {
+        width: 100%;
+        height: 200px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 8px;
+        font-family: monospace;
+        resize: vertical;
+    }
+
+    .notepad-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1040;
+        display: none;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .close-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+</style>
 
 
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        checkAttendanceStatus();
-        // fetchWorkHours();
+    let timerInterval = null;
+     let punchAction = null;
+     let currentLocation = null;
 
-        const punchInTime = localStorage.getItem("punchInTime");
-        if (punchInTime) {
-            startWorkHoursTimer(punchInTime);
-        } else {
-            document.getElementById('total-work-hours').innerText = "00:00:00";
-        }
+     document.addEventListener("DOMContentLoaded", function () {
+         checkAttendanceStatus();
+         fetchTodayPunchInfo();
+     });
 
-        managePunchButtons();
-        fetchTodayPunchInfo(); // ✅ Load punch info on page load
-    });
+     function managePunchButtons(canPunchIn, isPunchedIn, alreadyPunchedOut) {
+         const punchInBtn = document.getElementById("punchInBtn");
+         const punchOutBtn = document.getElementById("punchOutBtn");
 
-    function managePunchButtons() {
-        const punchInBtn = document.getElementById("punchInBtn");
-        const punchOutBtn = document.getElementById("punchOutBtn");
-        const punchInTime = localStorage.getItem("punchInTime");
-        const punchOutTime = localStorage.getItem("punchOutTime");
-        const now = new Date();
+         if (canPunchIn) {
+             punchInBtn.style.display = "inline-block";
+             punchOutBtn.style.display = "none";
+         } else if (isPunchedIn) {
+             punchInBtn.style.display = "none";
+             punchOutBtn.style.display = "inline-block";
+         } else if (alreadyPunchedOut) {
+             punchInBtn.style.display = "none";
+             punchOutBtn.style.display = "none";
+             stopWorkHoursTimer();
+         }
+     }
 
-        if (punchInTime) {
-            const inTime = new Date(punchInTime);
-            const hoursPassed = (now - inTime) / (1000 * 60 * 60);
-            if (hoursPassed < 20) {
-                punchInBtn.style.display = "none";
-                punchOutBtn.style.display = "inline-block";
-            } else {
-                punchInBtn.style.display = "inline-block";
-                punchOutBtn.style.display = "none";
-                localStorage.removeItem("punchInTime");
-            }
-        } else if (punchOutTime) {
-            punchInBtn.style.display = "inline-block";
-            punchOutBtn.style.display = "none";
-            localStorage.removeItem("punchOutTime");
-        } else {
-            punchInBtn.style.display = "inline-block";
-            punchOutBtn.style.display = "none";
-        }
-    }
+     function checkAttendanceStatus() {
+         fetch('/Home/GetAttendanceStatus')
+             .then(res => res.json())
+             .then(data => {
+                 managePunchButtons(data.canPunchIn, data.isPunchedIn, data.alreadyPunchedOut);
+                   if (data.punchInTime) {
+         if (!data.alreadyPunchedOut) {
+             startWorkHoursTimer(data.punchInTime);
+         } else {
+             stopWorkHoursTimer();
+             document.getElementById("total-work-hours").innerText = data.totalHours || "00:00:00";
+         }
+     } else {
+         stopWorkHoursTimer();
+     }
 
-    let punchAction = null;
-    let currentLocation = null;
+             })
+             .catch(err => console.error("Status check error:", err));
+     }
 
-    function startPunch(action) {
-        punchAction = action;
-        if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser.");
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            function (position) {
-                currentLocation = position.coords;
-                openCamera();
-            },
-            function () {
-                alert("Location permission denied. Please allow location access.");
-            }
-        );
-    }
+     // function fetchTodayPunchInfo() {
+     //     fetch('/Home/GetTodayPunchInfo')
+     //         .then(res => res.json())
+     //         .then(data => {
+     //             if (data.success) {
+     //                 if (data.punchInTime && data.punchOutTime) {
+     //                     stopWorkHoursTimer();
+     //                     document.getElementById("total-work-hours").innerText = data.totalHours || "00:00:00";
+     //                 }
+     //             }
+     //         })
+     //         .catch(err => console.error("Error fetching punch info:", err));
+     // }
 
-    function openCamera() {
-        const video = document.getElementById('cameraStream');
-        const selfieModal = document.getElementById('selfieModal');
-        selfieModal.style.display = "block";
+     function startPunch(action) {
+         punchAction = action;
+         if (!navigator.geolocation) {
+             alert("Geolocation not supported.");
+             return;
+         }
+         navigator.geolocation.getCurrentPosition(
+             pos => {
+                 currentLocation = pos.coords;
+                 openCamera();
+             },
+             () => alert("Location permission denied.")
+         );
+     }
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-            .then(function (stream) {
-                video.srcObject = stream;
-            })
-            .catch(function (err) {
-                console.error("Camera error:", err);
-                alert("Unable to access camera. Please allow camera access.");
-            });
-    }
+     function openCamera() {
+         const video = document.getElementById("cameraStream");
+         const modal = document.getElementById("selfieModal");
+         const timerDisplay = document.getElementById("selfieTimer");
 
-    function captureSelfie() {
-        const video = document.getElementById('cameraStream');
-        const canvas = document.getElementById('selfieCanvas');
-        const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        stopCameraStream();
-        document.getElementById('selfieModal').style.display = 'none';
+         modal.style.display = "block";
+         timerDisplay.innerText = "Capturing selfie in 5 seconds...";
 
-        const workType = document.getElementById("workType").value;
-        const dataUrl = canvas.toDataURL("image/jpeg");
-        const imageBlob = dataURItoBlob(dataUrl);
+         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+             .then(stream => {
+                 video.srcObject = stream;
+                 let countdown = 5;
+                 const intervalId = setInterval(() => {
+                     countdown--;
+                     timerDisplay.innerText = `Capturing selfie in ${countdown} seconds...`;
+                     if (countdown === 0) {
+                         clearInterval(intervalId);
+                         captureSelfie();
+                     }
+                 }, 1000);
+             })
+             .catch(err => {
+                 console.error("Camera error:", err);
+                 alert("Camera access error.");
+             });
+     }
 
-        const formData = new FormData();
-        formData.append("ActionType", punchAction);
-        formData.append("Latitude", currentLocation.latitude);
-        formData.append("Longitude", currentLocation.longitude);
-        formData.append("Selfie", imageBlob, "selfie.jpg");
-        formData.append("WorkType", workType);
-        formData.append("WFHReason", selectedWFHReason);
+     function captureSelfie() {
+         const canvas = document.getElementById("selfieCanvas");
+         const context = canvas.getContext("2d");
+         const video = document.getElementById("cameraStream");
 
-        const apiUrl = punchAction === "in" ? "/Home/PunchIn" : "/Home/PunchOut";
+         context.drawImage(video, 0, 0, canvas.width, canvas.height);
+         stopCameraStream();
+         document.getElementById("selfieModal").style.display = "none";
 
-        fetch(apiUrl, {
-            method: 'POST',
-            body: formData,
-        })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message || "Success!");
+         const dataUrl = canvas.toDataURL("image/jpeg");
+         const blob = dataURItoBlob(dataUrl);
+         const formData = new FormData();
 
-                if (punchAction === "in") {
-                    localStorage.setItem("punchInTime", new Date().toISOString());
-                    localStorage.removeItem("punchOutTime");
-                    startWorkHoursTimer(localStorage.getItem("punchInTime"));
-                } else {
-                    localStorage.setItem("punchOutTime", new Date().toISOString());
-                    localStorage.removeItem("punchInTime");
-                    stopWorkHoursTimer();
-                }
+         formData.append("ActionType", punchAction);
+         formData.append("Latitude", currentLocation?.latitude || 0);
+         formData.append("Longitude", currentLocation?.longitude || 0);
+         formData.append("Selfie", blob, "selfie.jpg");
+         formData.append("WorkType", document.getElementById("workType")?.value || "");
+         formData.append("WFHReason", document.getElementById("wfhReason")?.value || "");
 
-                // ✅ Reload data from DB
-                fetchTodayPunchInfo();
-                managePunchButtons();
-            })
-            .catch(err => {
-                console.error("Punch failed:", err);
-                alert("Punch failed.");
-            });
-    }
+         const url = punchAction === "in" ? "/Home/PunchIn" : "/Home/PunchOut";
 
-    function fetchTodayPunchInfo() {
-        fetch('/Home/GetTodayPunchInfo')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('punchInfoTable').style.display = 'block';
+         fetch(url, {
+             method: "POST",
+             body: formData
+         })
+             .then(res => res.json())
+             .then(data => {
+                 alert(data.message || "Success!");
+                 stopCameraStream();
+                 checkAttendanceStatus();
+                 fetchTodayPunchInfo();
+             })
+             .catch(err => {
+                 console.error("Punch failed:", err);
+                 alert("Punch failed.");
+             });
+     }
 
-                    if (data.punchInTime) {
-                        document.getElementById('punchInRow').style.display = 'table-row';
-                        document.getElementById('punchInTime').textContent = data.punchInTime;
-                        document.getElementById('punchInSelfie').src = data.punchInSelfie;
-                    document.getElementById('punchInMap').src = data.punchInLocation;
+     function startWorkHoursTimer(punchInTime) {
+         stopWorkHoursTimer();
+         const start = new Date(punchInTime);
+         timerInterval = setInterval(() => {
+             const now = new Date();
+             const diff = now - start;
+             const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+             const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+             const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+             document.getElementById("total-work-hours").innerText = `${h}:${m}:${s}`;
+         }, 1000);
+     }
 
-                    }
+     function stopWorkHoursTimer() {
+         if (timerInterval) clearInterval(timerInterval);
+         timerInterval = null;
+         document.getElementById("total-work-hours").innerText = "00:00:00";
+     }
 
-                    if (data.punchOutTime) {
-                        document.getElementById('punchOutRow').style.display = 'table-row';
-                        document.getElementById('punchOutTime').textContent = data.punchOutTime;
-                        document.getElementById('punchOutSelfie').src = data.punchOutSelfie;
-                      document.getElementById('punchOutMap').src = data.punchOutLocation;
-                    }
-                }
-            })
-            .catch(err => console.error("Error fetching punch info:", err));
-    }
+     function stopCameraStream() {
+         const video = document.getElementById("cameraStream");
+         const tracks = video?.srcObject?.getTracks();
+         if (tracks) tracks.forEach(track => track.stop());
+         video.srcObject = null;
+     }
 
-    function stopCameraStream() {
-        const video = document.getElementById('cameraStream');
-        const tracks = video?.srcObject?.getTracks();
-        if (tracks) tracks.forEach(track => track.stop());
-        video.srcObject = null;
-    }
+     function dataURItoBlob(dataURI) {
+         const byteString = atob(dataURI.split(',')[1]);
+         const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+         const ab = new ArrayBuffer(byteString.length);
+         const ia = new Uint8Array(ab);
+         for (let i = 0; i < byteString.length; i++) {
+             ia[i] = byteString.charCodeAt(i);
+         }
+         return new Blob([ab], { type: mimeString });
+     }
 
-    function dataURItoBlob(dataURI) {
-        const byteString = atob(dataURI.split(',')[1]);
-        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-        }
-        return new Blob([ab], { type: mimeString });
-    }
+     function fetchTodayPunchInfo() {
+         fetch('/Home/GetTodayPunchInfo')
+             .then(res => res.json())
+             .then(data => {
+                 if (data.success) {
+                     document.getElementById('punchInfoTable').style.display = 'block';
 
-    let workHoursTimer = null;
+                     if (data.punchInTime) {
+                         document.getElementById('punchInRow').style.display = 'table-row';
+                         document.getElementById('punchInTime').textContent = data.punchInTime;
+                         document.getElementById('punchInSelfie').src = data.punchInSelfie;
+                         document.getElementById('punchInMap').src = data.punchInLocation;
+                     }
 
-    function startWorkHoursTimer(punchInISOTime) {
-        if (workHoursTimer) clearInterval(workHoursTimer);
-        const punchInTime = new Date(punchInISOTime);
-        workHoursTimer = setInterval(() => {
-            const now = new Date();
-            let diff = now - punchInTime;
-            if (diff < 0) diff = 0;
-            const totalSeconds = Math.floor(diff / 1000);
-            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-            const seconds = String(totalSeconds % 60).padStart(2, '0');
-            document.getElementById('total-work-hours').innerText = `${hours}:${minutes}:${seconds}`;
-        }, 1000);
-    }
-
-    function stopWorkHoursTimer() {
-        if (workHoursTimer) {
-            clearInterval(workHoursTimer);
-            workHoursTimer = null;
-        }
-        document.getElementById('total-work-hours').innerText = "00:00:00";
-    }
-
-    function checkAttendanceStatus() {
-        fetch('/Home/GetAttendanceStatus')
-            .then(response => response.json())
-            .then(data => {
-                const punchInBtn = document.getElementById("punchInBtn");
-                const punchOutBtn = document.getElementById("punchOutBtn");
-
-                if (data.canPunchIn) {
-                    // Show Punch In, hide Punch Out
-                    punchInBtn.style.display = "inline-block";
-                    punchOutBtn.style.display = "none";
-                    punchInBtn.disabled = false;
-                } else if (data.isPunchedIn) {
-                    // Already punched in, waiting for Punch Out
-                    punchInBtn.style.display = "none";
-                    punchOutBtn.style.display = "inline-block";
-                } else if (data.alreadyPunchedOut) {
-                    // Both are done today
-                    punchInBtn.style.display = "none";
-                    punchOutBtn.style.display = "none";
-                }
-
-                if (data.punchInTime) {
-                    updateTimer(data.punchInTime);
-                }
-            })
-            .catch(error => console.error("Status check error:", error));
-    }
-
-    function updateTimer(punchInTime) {
-        const punchInDate = new Date(punchInTime);
-        setInterval(() => {
-            const now = new Date();
-            const diff = new Date(now - punchInDate);
-            const h = diff.getUTCHours().toString().padStart(2, '0');
-            const m = diff.getUTCMinutes().toString().padStart(2, '0');
-            const s = diff.getUTCSeconds().toString().padStart(2, '0');
-            document.getElementById("total-work-hours").innerText = `${h}:${m}:${s}`;
-        }, 1000);
-    }
-
-    // function fetchWorkHours() {
-    //     fetch('/Home/CalculateWorkHours')
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             document.getElementById("total-hours-today").innerText = data.totalWorkHoursToday || "00:00:00";
-    //             document.getElementById("total-hours-week").innerText = data.totalWorkHoursWeek || "00:00:00";
-    //         })
-    //         .catch(err => console.error("Work hours fetch error:", err));
-    // }
-
-    //     function setProgress(timeString) {
-    //     const circle = document.querySelector('.progress-ring__circle');
-    //     const radius = circle.r.baseVal.value;
-    //     const circumference = 2 * Math.PI * radius;
-
-    //     circle.style.strokeDasharray = `${circumference} ${circumference}`;
-    //     circle.style.strokeDashoffset = circumference;
-
-    //     const [hh, mm, ss] = timeString.split(":").map(Number);
-    //     const totalSeconds = hh * 3600 + mm * 60 + ss;
-    //     const maxSeconds = 9 * 3600; // 9 hours
-
-    //     const percent = Math.min(totalSeconds / maxSeconds, 1);
-    //     const offset = circumference - percent * circumference;
-    //     circle.style.strokeDashoffset = offset;
-    // }
-
-    // // Set from JS (can bind to timer too)
-    // setProgress("00:30:20");
+                     if (data.punchOutTime) {
+                         document.getElementById('punchOutRow').style.display = 'table-row';
+                         document.getElementById('punchOutTime').textContent = data.punchOutTime;
+                         document.getElementById('punchOutSelfie').src = data.punchOutSelfie;
+                         document.getElementById('punchOutMap').src = data.punchOutLocation;
+                     }
+                 }
+             })
+             .catch(err => console.error("Error fetching punch info:", err));
+     }
 </script>
+
 <script>
     $(document).ready(function () {
         loadNotifications();
@@ -410,18 +416,46 @@
         });
     });
 </script>
+<script>
+    function showPunchInTime() {
+        const punchInInfo = document.getElementById('punch-in-info');
+        const punchInTime = document.getElementById('punch-in-time');
+
+        const now = new Date();
+        const formattedTime = now.toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+
+        punchInTime.textContent = formattedTime;
+        punchInInfo.style.display = 'flex'; // Show it
+    }
+
+    // Call the function on page load
+    showPunchInTime();
+</script>
 
 
 
 <script>
-    let selectedWFHReason = "";
+        document.addEventListener('DOMContentLoaded', function() {
+           let selectedWFHReason = "";
 
     // Triggered when dropdown changes
-    document.getElementById("workType").addEventListener("change", function () {
-        if (this.value === "WFH") {
-            const wfhModal = new bootstrap.Modal(document.getElementById('wfhReasonModal'));
-            wfhModal.show();
-        }
+    const workTypeElement = document.getElementById("workType");
+    if (workTypeElement) {
+        workTypeElement.addEventListener("change", function () {
+            if (this.value === "WFH") {
+                const wfhModal = document.getElementById("wfhModal");
+                if (wfhModal) {
+                    wfhModal.showModal();
+                }
+            }
+        });
+    } else {
+        console.error("workType element not found");
+    }
     });
 
     // Called when "Continue" is clicked in WFH modal
@@ -447,6 +481,65 @@
         }, 500);
     }
 </script>
+<script>
+    let notepadContent = '';
+
+    function onWorkTypeChange(select) {
+        const selectedValue = select.value;
+
+        if (selectedValue === 'WFH') {
+            openNotepad();
+        }
+
+        console.log('Work type changed to:', selectedValue);
+    }
+
+    function openNotepad() {
+        const popup = document.getElementById('notepadPopup');
+        const overlay = document.getElementById('notepadOverlay');
+        const textarea = document.getElementById('notepadText');
+
+        // Restore saved content
+        textarea.value = notepadContent;
+
+        popup.style.display = 'block';
+        overlay.style.display = 'block';
+
+        // Focus on textarea
+        setTimeout(() => {
+            textarea.focus();
+        }, 100);
+    }
+
+    function closeNotepad() {
+        const popup = document.getElementById('notepadPopup');
+        const overlay = document.getElementById('notepadOverlay');
+
+        popup.style.display = 'none';
+        overlay.style.display = 'none';
+    }
+
+    function saveNotepad() {
+        const textarea = document.getElementById('notepadText');
+        notepadContent = textarea.value;
+
+        alert('Reason saved successfully!');
+        console.log('Saved notes:', notepadContent);
+    }
+
+    function clearNotepad() {
+        if (confirm('Are you sure you want to clear all notes?')) {
+            document.getElementById('notepadText').value = '';
+        }
+    }
+
+    // Close popup when pressing Escape key
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closeNotepad();
+        }
+    });
+</script>
 
 
 
@@ -457,7 +550,7 @@
 <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
     <div class="d-flex align-items-center justify-content-between w-100">
         <!-- Left Section: Dashboard Title -->
-        <h2 class="mb-1">Employee Dashboard</h2>
+        <h4 class="mb-1">Employee Dashboard</h4>
 
         <!-- Right Section: Notification Bell -->
         <div class="nav-item dropdown">
@@ -483,13 +576,13 @@
     <div class="col-xl-4 d-flex">
         <div class="card flex-fill border-primary attendance-bg">
             <div class="card-body">
-                <div class="mb-4 text-center">
+                <div class="mb-2 text-center">
                     <h6 class="fw-medium text-gray-5 mb-1">Attendance</h6>
                     <h4>@Model.UserName</h4>
                 </div>
 
                 <!-- Progress Circle -->
-                <div class="progress-clock">
+                <div class="progress-clock mb-2">
                     <svg class="progress-ring" width="150" height="150">
                         <circle class="progress-ring__circle-bg" r="70" cx="75" cy="75" />
                         <circle class="progress-ring__circle" r="70" cx="75" cy="75" />
@@ -502,36 +595,82 @@
 
                 <!-- Punch Info -->
                 <div class="text-center">
-                    <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-4"
-                        style="display: none; gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                    <h6 id="punch-in-info" class="fw-medium d-flex align-items-center justify-content-center mb-1"
+                        style="display: none; gap: 8px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size:14px;">
                         <i class="ti ti-fingerprint text-primary"></i>
                         <span>Punched In at</span>
                         <span id="punch-in-time" class="fw-bold ms-1"></span>
                     </h6>
+                </div>
 
-                    <!-- Work Type -->
+
+
+
+                @*   <!-- Work Type -->
                     <div class="mb-3">
                         <label for="workType" class="form-label fw-medium">Work Type</label>
                         <select id="workType" class="form-select text-center mx-auto" style="max-width: 200px;" onchange="onWorkTypeChange(this)">
                             <option value="WFO" selected>WFO</option>
                             <option value="WFH">WFH</option>
                         </select>
-                    </div>
+                    </div> *@
 
-                    <!-- Selfie Modal -->
-                    <div id="selfieModal" style="display:none; text-align:center; padding: 20px;">
-                        <video id="cameraStream" autoplay playsinline width="300" height="300" style="border-radius: 10px; border: 2px solid #ccc;"></video>
-                        <br />
-                        <button onclick="captureSelfie()" class="btn btn-success mt-2">📸 Capture Selfie</button>
-                        <canvas id="selfieCanvas" width="300" height="300" style="display:none;"></canvas>
-                    </div>
 
-                    <!-- Punch Buttons -->
+                <div class="container mt-1">
+                    <div class="row justify-content-center">
+                        <div class="col-md-6">
+                            <!-- Work Type -->
+                            <div class="mb-3">
+                                <label for="workType" class="form-label fw-medium">Work Type</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <select id="workType" class="form-select text-center mx-auto" style="max-width: 200px;" onchange="onWorkTypeChange(this)">
+                                <option value="WFO" selected>WFO</option>
+                                <option value="WFH">WFH</option>
+                            </select>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overlay -->
+                <div class="notepad-overlay" id="notepadOverlay" onclick="closeNotepad()"></div>
+
+                <!-- Notepad Popup -->
+                <div class="notepad-popup" id="notepadPopup">
+                    <div class="notepad-header">
+                        <h6 class="mb-0">Reason For WFH</h6>
+                        <button class="close-btn" onclick="closeNotepad()" title="Close">×</button>
+                    </div>
+                    <div class="notepad-body">
+                        <textarea class="notepad-textarea" id="notepadText" placeholder="Enter your WFH Reason here..."></textarea>
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            <button class="btn btn-secondary btn-sm" onclick="clearNotepad()">Clear</button>
+                            <button class="btn btn-primary btn-sm" onclick="saveNotepad()">Save</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="closeNotepad()">Close</button>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- Selfie Modal -->
+                <div id="selfieModal" style="display:none; text-align:center; padding: 20px;">
+                    <video id="cameraStream" autoplay playsinline width="300" height="300" style="border-radius: 10px; border: 2px solid #ccc;"></video>
+                    <div id="selfieTimer" class="mt-2 text-danger fw-bold"></div>
+                    <canvas id="selfieCanvas" width="300" height="300" style="display:none;"></canvas>
+                </div>
+
+                <!-- Punch Buttons -->
+                <div class="text-center">
                     <button id="punchInBtn" onclick="startPunch('in')" class="btn btn-primary">Punch In</button>
                     <button id="punchOutBtn" onclick="startPunch('out')" class="btn btn-danger" style="display:none;">Punch Out</button>
                 </div>
+
             </div>
         </div>
+
     </div>
 
     <!-- Employee Profile Info -->

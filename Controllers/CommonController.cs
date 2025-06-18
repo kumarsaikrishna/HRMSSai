@@ -233,6 +233,26 @@ namespace AttendanceCRM.Controllers
             }
             return res;
         }
+
+        public IActionResult FilterAttendance(string filterType, DateTime? startDate, DateTime? endDate, int? userId)
+        {
+            var data = _mService.GetFilteredAttendance(filterType, startDate, endDate, userId);
+
+            var grouped = data
+                .GroupBy(a => a.UserId)
+                .Select(g => g.First()) 
+                .ToList();
+
+            return PartialView("_AttendanceTable", grouped);
+        }
+
+        public IActionResult GetPunchDetails(int userId, string filterType, DateTime? startDate, DateTime? endDate)
+        {
+            var punchData = _mService.GetPunchDetails(userId, filterType, startDate, endDate);
+            return PartialView("_PunchDetailsModal", punchData);
+        }
+
+
         #endregion
 
         #region BankDetails

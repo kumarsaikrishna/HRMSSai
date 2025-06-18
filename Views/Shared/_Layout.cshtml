@@ -68,6 +68,27 @@
 			// Show the logout option when "My Profile" is clicked
 			document.getElementById("logoutOption").style.display = "block";
 		}
+		// 		document.addEventListener('DOMContentLoaded', function() {
+		// 	// All your event listeners go here
+		// 	loaderRadios.forEach(radio => radio.addEventListener('change', handleInputChange));
+		// 	sidebarBgRadios.forEach(radio => radio.addEventListener('change', handleSidebarBgChange));
+		// 	topbarBgRadios.forEach(radio => radio.addEventListener('change', handleTopbarBgChange));
+
+		// 	// Reset button event listener
+		// 	const resetButton = document.getElementById('resetButton'); // or whatever the ID is
+		// 	if (resetButton) {
+		// 		resetButton.addEventListener('click', resetThemeAndSidebarThemeAndColorAndBg);
+		// 	}
+
+		// 	// Initial setup from localStorage
+		// 	const savedTheme = localStorage.getItem('theme');
+		// 	savedSidebarTheme = localStorage.getItem('sidebarTheme');
+		// 	savedColor = localStorage.getItem('color');
+		// 	const savedLayout = localStorage.getItem('layout');
+		// 	savedTopbar = localStorage.getItem('topbar');
+
+		// 	// Rest of your initialization code...
+		// });
 	</script>
 
 	   @RenderSection("Styles", required: false)
@@ -1164,15 +1185,21 @@
 														<img src="~/UploadedImages/dummy.png" alt="Default Profile">
 													</span>
 												}
-
 												<div>
 													<h5 class="mb-0">@ViewBag.UserDetails.userName</h5>
-													<p class="fs-12 fw-medium mb-0"><a href="#">@ViewBag.UserDetails.emailId</a></p>
+													<p class="fs-12 fw-medium mb-0">
+														<a href="#">@ViewBag.UserDetails.emailId</a>
+													</p>
 												</div>
 											</div>
 										</div>
-										<div class="card-body">
+
+										<div class="card-body py-2">
+											<a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="~/Employee/EditProfile">
+												<i class="ti ti-user-edit me-2"></i>Edit Profile
+											</a>
 										</div>
+
 										<div class="card-footer py-1">
 											<a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="~/Authenticate/Logout">
 												<i class="ti ti-login me-2"></i>Logout
@@ -1196,8 +1223,8 @@
 					</a>
 					<ul class="dropdown-menu dropdown-menu-end">
 						<li><a class="dropdown-item" href="javascript:void(0);" onclick="showLogoutOption()">My Profile</a></li>
-						<li><a class="dropdown-item" href="#">Settings</a></li>
-						<li id="logoutOption" class="dropdown-item" style="display: none;" href="~/Authenticate/Logout">Logout</li>
+						@* <li><a class="dropdown-item" href="#">Settings</a></li> *@
+						<li id="logoutOption" class="dropdown-item" style="display: none;" href="~/Authenticate/Login">Logout</li>
 					</ul>
 				</div>
 

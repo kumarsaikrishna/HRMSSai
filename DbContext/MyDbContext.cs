@@ -38,6 +38,7 @@ using Microsoft.EntityFrameworkCore;
         modelBuilder.Entity<DepartmentEntity>().ToTable("Department");
         modelBuilder.Entity<SalaryStructureEntity>().ToTable("SalaryStructure");
         modelBuilder.Entity<SalarysEntity>().ToTable("Salarys");
+        modelBuilder.Entity<Incidents>().ToTable("Incidents");
 
     }
 
@@ -67,4 +68,5 @@ using Microsoft.EntityFrameworkCore;
     public DbSet<DepartmentEntity> department { get; set; }
     public DbSet<SalaryStructureEntity> salaryStructure { get; set; }
     public DbSet<SalarysEntity> salary{ get; set; }
+    public DbSet<Incidents> incidents { get; set; }
 }

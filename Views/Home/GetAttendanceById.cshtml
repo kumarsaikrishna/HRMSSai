@@ -2,94 +2,209 @@
 
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
-    var rCnt = 1;
 }
 
+<!-- FullCalendar CSS & JS -->
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-end mb-3">
-        <button id="applyFilterBtn" class="btn btn-primary">Apply Filter</button>
-        <select id="monthFilter" class="form-select w-auto mx-2">
-            <option value="">Month</option>
-            @for (int m = 1; m <= 12; m++)
-            {
-                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
-            }
-        </select>
-        <select id="yearFilter" class="form-select w-auto">
-            <option value="">Year</option>
-            @for (int y = DateTime.Now.Year; y >= 2020; y--)
-            {
-                <option value="@y">@y</option>
-            }
-        </select>
-    </div>
-    <div id="attendanceCalendar" style="margin-top: 20px;"></div>
+    <div id="attendanceCalendar"></div>
 </div>
 
 <!-- Punch Info Modal -->
-<div id="punchInfoModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+<div id="punchInfoModal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Punch Details</h5>
+                <h5 class="modal-title">Attendance Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <table class="table table-bordered text-center">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Selfie</th>
-                            <th>Time</th>
-                            <th>Location</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr id="punchInRow" style="display: none;">
-                            <td>Punch In</td>
-                            <td><img id="punchInSelfie" class="img-fluid" style="width: 100px; border-radius: 8px;" /></td>
-                            <td id="punchInTime"></td>
-                            <td><iframe id="punchInMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
-                        </tr>
-                        <tr id="punchOutRow" style="display: none;">
-                            <td>Punch Out</td>
-                            <td><img id="punchOutSelfie" class="img-fluid" style="width: 100px; border-radius: 8px;" /></td>
-                            <td id="punchOutTime"></td>
-                            <td><iframe id="punchOutMap" width="200" height="150" style="border:0;" loading="lazy"></iframe></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-3" id="modalTabLinks">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#modal-swipes">Swipes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="@Url.Action("ApplyLeave", "Common")">Leave</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#modal-incident">Incident</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Swipes -->
+                    <div class="tab-pane fade show active" id="modal-swipes">
+                        <table class="table table-bordered text-center">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Selfie</th>
+                                    <th>Time</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="punchInRow" style="display: none;">
+                                    <td>Punch In</td>
+                                    <td><img id="punchInSelfie" style="width: 100px; border-radius: 8px;" /></td>
+                                    <td id="punchInTime"></td>
+                                    <td>
+                                        <iframe id="punchInMap" width="200" height="150" style="border:0;" loading="lazy"></iframe>
+                                        <div><small id="punchInAddress" class="text-muted"></small></div>
+                                    </td>
+                                </tr>
+                                <tr id="punchOutRow" style="display: none;">
+                                    <td>Punch Out</td>
+                                    <td><img id="punchOutSelfie" style="width: 100px; border-radius: 8px;" /></td>
+                                    <td id="punchOutTime"></td>
+                                    <td>
+                                        <iframe id="punchOutMap" width="200" height="150" style="border:0;" loading="lazy"></iframe>
+                                        <div><small id="punchOutAddress" class="text-muted"></small></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="tab-pane fade" id="modal-incident">
+                        <p>Incident details will appear here.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+<!-- Incident Selection Modal -->
+<div id="incidentTypeModal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="incidentForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Events</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3 px-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Incidents <span class="text-danger">*</span></label>
+                        <select id="incidentType" class="form-select" required>
+                            <option value="">Select One</option>
+                            <option value="Missed Punch">Missed Punch</option>
+                            <option value="Late Arrival">Late Arrival</option>
+                            <option value="Early Departure">Early Departure</option>
+                            <option value="On Duty">On Duty</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6" id="purposeDiv" style="display:none;">
+                        <label class="form-label">Purpose</label>
+                        <select class="form-select" id="incidentPurpose">
+                            <option value="">Select One</option>
+                            <option>Client Meeting</option>
+                            <option>Site Visit</option>
+                            <option>Medical Emergency</option>
+                            <option>Personal</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Date</label>
+                        <input type="text" id="incidentDate" class="form-control" readonly />
+                    </div>
+
+                    <div class="col-md-6" id="swipeDiv" style="display:none;">
+                        <label class="form-label">In/Out Swipes <span class="text-danger">*</span></label>
+                        <select id="swipeType" class="form-select">
+                            <option value="">Select One</option>
+                            <option value="In">In</option>
+                            <option value="Out">Out</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" rows="3" id="incidentReason" placeholder="Describe your reason..." required></textarea>
+                    </div>
+@* 
+                    <div class="col-12">
+                        <label class="form-label">Upload Document(s)</label>
+                        <input type="file" class="form-control" multiple />
+                    </div> *@
+                </div>
+
+                <div class="modal-footer px-4">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- SweetAlert -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    let selectedPunchEventProps = null;
+
+    function getAddressFromCoordinates(lat, lng, callback) {
+        const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with real key
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "OK" && data.results.length > 0) {
+                    callback(data.results[0].formatted_address);
+                } else {
+                    callback("Address not found");
+                }
+            })
+            .catch(error => {
+                console.error("Geocoding error:", error);
+                callback("Error fetching address");
+            });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const calendarEl = document.getElementById('attendanceCalendar');
         const events = [];
 
         @foreach (var item in Model)
         {
-                var status = item.PunchOutTime == null ? "Forgot to Punch Out" : item.TotalHours < 4 ? "Absent" : item.TotalHours < 8.5 ? "Half Day" : "Present";
+                var status = item.PunchOutTime == null ? "Forgot to Punch Out" :
+                                          item.TotalHours < 4 ? "Absent" :
+                                          item.TotalHours < 8.5 ? "Half Day" : "Present";
+
                 var title = $"{status} - {item.TotalHours} hrs ({item.WorkType})";
-                var color = item.PunchOutTime == null ? "#6c757d" : item.WorkType == "WFH" ? "#007bff" : item.WorkType == "WFO" ? "#28a745" : "#ffc107";
+                var color = item.PunchOutTime == null ? "#6c757d" :
+                                        item.TotalHours < 4 ? "#dc3545" :
+                                        item.TotalHours < 8.5 ? "#ffc107" :
+                                        item.WorkType == "WFO" ? "#28a745" : "#007bff";
+
+                var date = item.CreatedOn?.ToString("yyyy-MM-dd");
 
                 <text>
-                events.push({
-                    title: "@title",
-                    start: "@item.CreatedOn",
-                    color: "@color",
-                    extendedProps: {
-                        punchIn: "@(item.PunchInTime?.ToString("HH:mm") ?? "-")",
-                        punchOut: "@(item.PunchOutTime?.ToString("HH:mm") ?? "-")",
-                        workType: "@item.WorkType"
-                    }
-                });
+                    events.push({
+                        title: "@Html.Raw(title)",
+                        start: "@date",
+                        color: "@color",
+                        extendedProps: {
+                            punchIn: "@(item.PunchInTime?.ToString("HH:mm") ?? "-")",
+                            punchOut: "@(item.PunchOutTime?.ToString("HH:mm") ?? "-")",
+                            punchInSelfie: "@item.SelfiePath",
+                            punchOutSelfie: "@item.PunchOutSelfiePath",
+                            workType: "@item.WorkType",
+                            lat: "@item.Latitude",
+                            lng: "@item.Longitude",
+                            punchOutLat: "@item.PunchOutLatitude",
+                            punchOutLng: "@item.PunchOutLongitude"
+                        }
+                    });
                 </text>
         }
 
@@ -103,64 +218,89 @@
             },
             events: events,
             eventClick: function (info) {
-                Swal.fire({
-                    title: info.event.title,
-                    html: `<strong>Punch In:</strong> ${info.event.extendedProps.punchIn}<br>
-                           <strong>Punch Out:</strong> ${info.event.extendedProps.punchOut}<br>
-                           <strong>Work Type:</strong> ${info.event.extendedProps.workType}`,
-                    icon: 'info'
-                });
-            },
-            dateClick: function (info) {
-                $('#punchInfoModal').modal('show');
-                populatePunchDetails(info.dateStr);
-            }
-        });
+                selectedPunchEventProps = info.event.extendedProps;
 
-        calendar.render();
+                document.querySelectorAll('#modalTabLinks .nav-link').forEach(link => link.classList.remove('active'));
+                document.querySelector('#modalTabLinks .nav-link[href="#modal-swipes"]').classList.add('active');
 
-        $('#applyFilterBtn').click(function () {
-            const month = $('#monthFilter').val();
-            const year = $('#yearFilter').val();
-            if (month && year) {
-                window.location.href = `/Home/GetAttendanceById?month=${month}&year=${year}`;
-            } else {
-                alert("Please select both Month and Year.");
-            }
-        });
-    });
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
+                document.querySelector('#modal-swipes').classList.add('show', 'active');
 
-    function populatePunchDetails(dateStr) {
-        $.ajax({
-            url: '/Home/GetPunchDetails',
-            type: 'GET',
-            data: { date: dateStr },
-            success: function (data) {
-                if (data.punchIn) {
+                const props = selectedPunchEventProps;
+
+                if (props.punchIn !== "-") {
                     $('#punchInRow').show();
-                    $('#punchInSelfie').attr('src', data.punchIn.selfieUrl);
-                    $('#punchInTime').text(data.punchIn.time);
-                    $('#punchInMap').attr('src', `https://maps.google.com/maps?q=${data.punchIn.lat},${data.punchIn.lng}&hl=es;z=14&output=embed`);
+                    $('#punchInSelfie').attr('src', props.punchInSelfie);
+                    $('#punchInTime').text(props.punchIn);
+                    $('#punchInMap').attr('src', `https://maps.google.com/maps?q=${props.lat},${props.lng}&hl=es;z=14&output=embed`);
+                    getAddressFromCoordinates(props.lat, props.lng, address => {
+                        $('#punchInAddress').text(address);
+                    });
                 } else {
                     $('#punchInRow').hide();
                 }
 
-                if (data.punchOut) {
+                if (props.punchOut !== "-") {
                     $('#punchOutRow').show();
-                    $('#punchOutSelfie').attr('src', data.punchOut.selfieUrl);
-                    $('#punchOutTime').text(data.punchOut.time);
-                    $('#punchOutMap').attr('src', `https://maps.google.com/maps?q=${data.punchOut.lat},${data.punchOut.lng}&hl=es;z=14&output=embed`);
+                    $('#punchOutSelfie').attr('src', props.punchOutSelfie);
+                    $('#punchOutTime').text(props.punchOut);
+                    $('#punchOutMap').attr('src', `https://maps.google.com/maps?q=${props.punchOutLat},${props.punchOutLng}&hl=es;z=14&output=embed`);
+                    getAddressFromCoordinates(props.punchOutLat, props.punchOutLng, address => {
+                        $('#punchOutAddress').text(address);
+                    });
                 } else {
                     $('#punchOutRow').hide();
                 }
-            },
-            error: function () {
-                alert('Failed to load punch details.');
+
+                new bootstrap.Modal(document.getElementById('punchInfoModal')).show();
             }
         });
-    }
+
+        calendar.render();
+    });
+
+          // Show/hide additional fields based on incident type
+    $('#incidentType').on('change', function () {
+        const type = $(this).val();
+
+        // Set swipe & purpose visibility
+        $('#swipeDiv').toggle(type === 'Missed Punch');
+        $('#purposeDiv').toggle(type === 'On Duty' || type === 'Other');
+    });
+
+    // Auto-fill date when opening the modal from calendar
+    $('a.nav-link[href="#modal-incident"]').on('click', function (e) {
+        e.preventDefault();
+
+        // Show the incident modal instead of tab
+        const selectedDate = selectedPunchEventProps?.startStr ?? new Date().toISOString().split('T')[0];
+        $('#incidentDate').val(selectedDate);
+
+        new bootstrap.Modal(document.getElementById('incidentTypeModal')).show();
+    });
+
+    // Optional form handler
+    $('#incidentForm').on('submit', function (e) {
+        e.preventDefault();
+
+        const incident = $('#incidentType').val();
+        const reason = $('#incidentReason').val();
+
+        if (!incident || !reason) {
+            Swal.fire("Error", "Incident type and reason are required.", "error");
+            return;
+        }
+
+        Swal.fire("Success", "Incident submitted successfully.", "success");
+        $('#incidentTypeModal').modal('hide');
+
+        // You can also POST this form data to the server here.
+    });
+
+
 </script>
 
+<!-- Style -->
 <style>
     .fc-daygrid-event {
         font-size: 0.85em;
@@ -179,5 +319,10 @@
         top: 2px;
         right: 2px;
         z-index: 4;
+    }
+
+    small.text-muted {
+        display: block;
+        margin-top: 5px;
     }
 </style>

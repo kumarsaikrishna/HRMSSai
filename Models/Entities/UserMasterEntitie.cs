@@ -38,7 +38,7 @@ namespace AttendanceCRM.Models.Entities
         public int? DepartmentId { get; set; }
 
         public string? Password { get; set; }
-
+		public bool? EmployeeStatus { get; set; }
         public bool IsDeleted { get; set; }
 
         public bool IsActive { get; set; }

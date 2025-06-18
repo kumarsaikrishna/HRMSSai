@@ -1,0 +1,137 @@
+﻿@model List<AttendanceCRM.Models.DTOS.AttendanceViewModel>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Punch In</th>
+            <th>Punch In Selfie</th>
+            <th>Punch In Location</th>
+            <th>Punch Out</th>
+            <th>Punch Out Selfie</th>
+            <th>Punch Out Location</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var punch in Model)
+        {
+            <tr>
+                <td>@punch.CreatedOn?.ToString("dd-MM-yyyy")</td>
+
+                <td>@punch.PunchInTime?.ToString("hh:mm tt")</td>
+
+                <!-- Punch In Photo + Location -->
+                <td>
+                    @if (!string.IsNullOrEmpty(punch.SelfiePath))
+                    {
+                        <img src="@Url.Content(punch.SelfiePath)" alt="Punch In Selfie" width="60" height="60"
+                             style="object-fit:cover; border-radius: 5px;"
+                             onerror="this.src='/images/no-image.png'" />
+                    }
+                    else
+                    {
+                        <span>No Image</span>
+                    }
+                    
+                  
+                </td>
+
+                <td>
+                    <iframe width="200"
+                            height="150"
+                            frameborder="0"
+                            style="border:0;"
+                            loading="lazy"
+                            allowfullscreen
+                            src="https://www.google.com/maps?q=@punch.Latitude,@punch.Longitude&hl=es;z=14&output=embed">
+                    </iframe>
+                </td>
+
+                <!-- Punch Out Time -->
+                <td>@punch.PunchOutTime?.ToString("hh:mm tt")</td>
+
+                <!-- Punch Out Photo + Location -->
+                <td>
+                    @if (!string.IsNullOrEmpty(punch.PunchOutSelfiePath))
+                    {
+                        <img src="@Url.Content(punch.PunchOutSelfiePath)" alt="Punch Out Selfie" width="60" height="60"
+                             style="object-fit:cover; border-radius: 5px;"
+                             onerror="this.src='/images/no-image.png'" />
+                    }
+                    else
+                    {
+                        <span>No Image</span>
+                    }
+                    
+                   
+                </td>
+
+                <td>
+                    <iframe width="200"
+                            height="150"
+                            frameborder="0"
+                            style="border:0;"
+                            loading="lazy"
+                            allowfullscreen
+                            src="https://www.google.com/maps?q=@punch.PunchOutLatitude,@punch.PunchOutLongitude&hl=es;z=14&output=embed">
+                    </iframe>
+                </td>
+
+                <td>@(punch.PunchInTime.HasValue ? "Present" : "Absent")</td>
+            </tr>
+
+        }
+    </tbody>
+</table>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".location").forEach(span => {
+            const lat = span.getAttribute("data-lat");
+            const lng = span.getAttribute("data-lng");
+
+            if (lat && lng) {
+                fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.display_name) {
+                            span.textContent = data.display_name;
+                        } else {
+                            span.textContent = "Location not found";
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        span.textContent = "Error fetching location";
+                    });
+            } else {
+                span.textContent = "No coordinates";
+            }
+        });
+    });
+        function populatePunchDetails(data) {
+        if (data.PunchInTime || data.SelfiePath) {
+            document.getElementById("punchInRow").style.display = "table-row";
+            document.getElementById("punchInTime").innerText = data.PunchInTime ?? "N/A";
+            document.getElementById("punchInSelfie").src = data.SelfiePath || '/images/no-image.png';
+
+            if (data.Latitude && data.Longitude) {
+                document.getElementById("punchInMap").src =
+                    `https://www.google.com/maps?q=${data.Latitude},${data.Longitude}&hl=es;z=14&output=embed`;
+            }
+        }
+
+        if (data.PunchOutTime || data.PunchOutSelfiePath) {
+            document.getElementById("punchOutRow").style.display = "table-row";
+            document.getElementById("punchOutTime").innerText = data.PunchOutTime ?? "N/A";
+            document.getElementById("punchOutSelfie").src = data.PunchOutSelfiePath || '/images/no-image.png';
+
+            if (data.PunchOutLatitude && data.PunchOutLongitude) {
+                document.getElementById("punchOutMap").src =
+                    `https://www.google.com/maps?q=${data.PunchOutLatitude},${data.PunchOutLongitude}&hl=es;z=14&output=embed`;
+            }
+        }
+    }
+
+</script>
+

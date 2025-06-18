@@ -118,9 +118,75 @@ namespace AttendanceCRM.BAL.Services
 
             return obj;
         }
+        public List<AttendanceViewModel> GetFilteredAttendance(string filterType, DateTime? startDate, DateTime? endDate, int? userId)
+        {
+            IQueryable<AttendanceEntitie> query = _context.attendanceEntitie;
 
+            // Filter by user
+            if (userId.HasValue)
+            {
+                query = query.Where(a => a.UserId == userId.Value);
+            }
 
+            DateTime today = DateTime.Today;
 
+            switch (filterType)
+            {
+                case "Daily":
+                    query = query.Where(a => a.CreatedOn == today);
+                    break;
+
+                case "Weekly":
+                    DateTime weekStart = today.AddDays(-(int)today.DayOfWeek);
+                    DateTime weekEnd = weekStart.AddDays(6);
+                    query = query.Where(a => a.CreatedOn >= weekStart && a.CreatedOn <= weekEnd);
+                    break;
+
+                case "Monthly":
+                    DateTime monthStart = new DateTime(today.Year, today.Month, 1);
+                    DateTime monthEnd = monthStart.AddMonths(1).AddDays(-1);
+                    query = query.Where(a => a.CreatedOn >= monthStart && a.CreatedOn <= monthEnd);
+                    break;
+
+                case "Custom":
+                    if (startDate.HasValue && endDate.HasValue)
+                    {
+                        DateTime sDate = startDate.Value.Date;
+                        DateTime eDate = endDate.Value.Date;
+                        query = query.Where(a => a.CreatedOn >= sDate && a.CreatedOn <= eDate);
+                    }
+                    break;
+            }
+
+            var result = query
+                .Select(a => new AttendanceViewModel
+                {
+                    UserId = a.UserId ?? 0,
+                    UserName =_context.userMasterEntitie.Where(a=>a.UserId==a.UserId).Select(a=>a.UserName).FirstOrDefault(),
+                    Designation = _context.userMasterEntitie.Where(a => a.UserId == a.UserId).Select(a => a.Designation).FirstOrDefault(),
+                    CreatedOn = a.CreatedOn,
+                    PunchInTime = a.PunchInTime,
+                    PunchOutTime = a.PunchOutTime,
+                    SelfiePath=a.SelfiePath,
+                    PunchOutSelfiePath=a.PunchOutSelfiePath,
+                    PunchOutLatitude = a.PunchOutLatitude,
+                    PunchOutLongitude = a.PunchOutLongitude,
+                    Latitude=a.Latitude,
+                    Longitude=a.Longitude,
+                    GracePeriodTime = a.GracePeriodTime
+                })
+                .OrderByDescending(a => a.CreatedOn)
+                .ToList();
+
+            return result;
+        }
+
+        public List<AttendanceViewModel> GetPunchDetails(int userId, string filterType, DateTime? startDate, DateTime? endDate)
+        {
+            return GetFilteredAttendance(filterType, startDate, endDate, userId)
+                                  .OrderBy(a => a.CreatedOn)
+                                  .ToList();
+        }
         public AttendanceEntitie GetAttendanceeById(int id)
         {
             return _context.attendanceEntitie.Where(a => a.AttendanceId == id).FirstOrDefault();

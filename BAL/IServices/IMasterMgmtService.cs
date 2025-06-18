@@ -18,7 +18,8 @@ namespace AttendanceCRM.BAL.IServices
         AttendanceEntitie GetAttendanceeById(int id);
         GenericResponse CreateAttendance(AttendanceEntitie sme);
         GenericResponse UpdateAttendance(AttendanceEntitie sme);
-
+        List<AttendanceViewModel> GetFilteredAttendance(string filterType, DateTime? startDate, DateTime? endDate, int? userId);
+        List<AttendanceViewModel> GetPunchDetails(int userId, string filterType, DateTime? startDate, DateTime? endDate);
         #endregion
 
         #region  BankDetails

@@ -114,7 +114,17 @@
 											
 											<input type="text" class="form-control" id="PanNumber" value="@Model.PanNumber" name="PanNumber" placeholder="Pan Number">
 										</div>
-								
+										@if (ViewBag.Role == "Admin" || ViewBag.Role == "HR")
+										{
+											<div class="form-group col-md-3 mb-3">
+												<label for="Status" class="col-form-label">Status</label>
+												<select id="Status" name="Status" class="form-control">
+													<option value="true" selected="@(Model.Status ? "selected" : "")">Active</option>
+													<option value="false" >Inactive</option>
+												</select>
+											</div>
+										}
+
 										<div class="form-group col-md-3 mb-3">
 											<label for="Address" class="col-form-label">Address</label>
 										    <input type="text" class="form-control" id="Address" value="@Model.Address" name="Address" placeholder="Address">

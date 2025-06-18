@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -61,7 +62,13 @@ namespace AttendanceCRM.Controllers
 
             ViewBag.UserDetails = lr;
             ViewBag.UserId = lr.userId;
+            var today = DateTime.UtcNow.Date;
 
+            var punch = _context.attendanceEntitie
+                         .FirstOrDefault(p => p.UserId == lr.userId && p.CreatedOn == today);
+
+            ViewBag.PunchInTime = punch?.PunchInTime;
+            ViewBag.PunchOutTime = punch?.PunchOutTime;
             // Fetch user details
             var user = await _context.userMasterEntitie
                 .Where(u => u.UserId == lr.userId)
@@ -149,7 +156,7 @@ namespace AttendanceCRM.Controllers
             ViewBag.SelectedYear = selectedYear;
 
             // Calculate today's attendance hours
-            var today = DateTime.UtcNow.Date;
+         
             var todayAttendance = _context.attendanceEntitie
                 .Where(a => a.UserId == lr.userId && a.PunchInTime.Value.Date == today)
                 .ToList();
@@ -415,158 +422,188 @@ namespace AttendanceCRM.Controllers
             return View(paginatedLeaves);
         }
 
+        [HttpGet]
+       
+        public IActionResult GetCalendarAttendance()
+        {
+            int userId = int.Parse(User.FindFirstValue("UserID"));
+            var attendanceList = GetAttendanceByUserId(userId);
+            var events = new List<object>();
+
+            foreach (var record in attendanceList)
+            {
+                string title;
+                string color;
+
+                DateTime date = record.PunchInTime?.Date ?? DateTime.Today;
+
+                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    title = "Weekly Off";
+                    color = "#808080"; // Gray
+                }
+                else if (record.PunchInTime == null)
+                {
+                    title = "Absent";
+                    color = "#ff4d4d"; // Red
+                }
+                else if (string.IsNullOrEmpty(record.PunchOutSelfiePath))
+                {
+                    title = "Missed PunchOut";
+                    color = "#a0a0a0"; // Grey
+                }
+                else if (record.WorkType == "WFO")
+                {
+                    double totalHours = record.TotalHours ?? 0;
+                    if (totalHours < 9)
+                    {
+                        title = $"TimeSpent: {totalHours:0.00} hrs - WFO (Under Hours)";
+                        color = "#ffcc00"; // Yellow
+                    }
+                    else
+                    {
+                        title = $"TimeSpent: {totalHours:0.00} hrs - WFO";
+                        color = "#28a745"; // Green
+                    }
+                }
+                else
+                {
+                    title = $"TimeSpent: {record.TotalHours ?? 0:0.00} hrs - {record.WorkType}";
+                    color = "#007bff"; // Blue
+                }
+
+                events.Add(new
+                {
+                    title = title,
+                    start = date.ToString("yyyy-MM-dd"),
+                    color = color
+                });
+            }
+
+            return Json(events);
+        }
 
         public List<AttendanceViewModel> GetAllEmployeesAttendanceRecords(string searchTerm = null)
         {
-            var query = (from a in _context.attendanceEntitie
-                         join u in _context.userMasterEntitie on a.UserId equals u.UserId
-                         orderby a.CreatedOn descending
-                         select new AttendanceViewModel
-                         {
-                             UserId = (int)a.UserId,
-                             UserName = u.UserName,
-                             CreatedOn = a.CreatedOn,
-                             PunchInTime = a.PunchInTime,
-                             PunchOutTime = a.PunchOutTime,
-                             GracePeriodTime = a.GracePeriodTime,
-                             Designation = u.Designation
-                         }).ToList();
+           var attendanceData = (
+    from a in _context.attendanceEntitie
+    join u in _context.userMasterEntitie on a.UserId equals u.UserId
+    where a.UserId != null
+    group a by new { a.UserId, u.UserName, u.Designation,u.Email } into g
+    select new AttendanceViewModel
+    {
+        UserId = g.Key.UserId.Value,
+        UserName = g.Key.UserName,
+        Designation = g.Key.Designation,
+        Email=g.Key.Email,
+       
+        
+    }).Distinct().ToList();
+
+            return attendanceData.OrderByDescending(x => x.PunchInTime).ToList();
 
 
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                searchTerm = searchTerm.ToLower();
-                query = query.Where(x =>
-                    (x.UserName ?? "").ToLower().Contains(searchTerm)
-                ).ToList();
-            }
+            //var query = (from a in _context.attendanceEntitie
+            //             join u in _context.userMasterEntitie on a.UserId equals u.UserId
+            //             orderby a.CreatedOn descending
+            //             select new AttendanceViewModel
+            //             {
+            //                 UserId = (int)a.UserId,
+            //                 UserName = u.UserName,
+            //                 CreatedOn = a.CreatedOn,
+            //                 PunchInTime = a.PunchInTime,
+            //                 PunchOutTime = a.PunchOutTime,
+            //                 GracePeriodTime = a.GracePeriodTime,
+            //                 Designation = u.Designation
+            //             }).ToList();
 
-            return query.OrderByDescending(x => x.CreatedOn).ToList();
+
+            //if (!string.IsNullOrEmpty(searchTerm))
+            //{
+            //    searchTerm = searchTerm.ToLower();
+            //    query = query.Where(x =>
+            //        (x.UserName ?? "").ToLower().Contains(searchTerm)
+            //    ).ToList();
+            //}
+
+            //return query.OrderByDescending(x => x.CreatedOn).ToList();
         }
 
 
 
-        //[HttpGet]
-        //public IActionResult FilterAttendance(string filterType, DateTime? startDate, DateTime? endDate, int? userId)
-        //{
-        //    var attendanceData = (from a in _context.attendanceEntitie
-        //                          join u in _context.userMasterEntitie on a.UserId equals u.UserId
-        //                          select new AttendanceViewModel
-        //                          {
-        //                              UserId = (int)a.UserId,
-        //                              UserName = u.UserName,
-        //                              CreatedOn = a.CreatedOn,
-        //                              PunchInTime = a.PunchInTime,
-        //                              PunchOutTime = a.PunchOutTime,
-        //                              GracePeriodTime = a.GracePeriodTime,
-        //                              Designation = u.Designation,
-        //                          }).AsQueryable();
-
-        //    if (userId.HasValue && userId.Value > 0)
-        //    {
-        //        attendanceData = attendanceData.Where(a => a.UserId == userId.Value);
-        //    }
-
-        //    DateTime today = DateTime.Today;
-
-        //    switch (filterType)
-        //    {
-        //        case "Daily":
-        //            attendanceData = attendanceData.Where(a => a.CreatedOn.Value.Date == today);
-        //            break;
-        //        case "Weekly":
-        //            DateTime startOfWeek = today.AddDays(-(int)today.DayOfWeek);
-        //            attendanceData = attendanceData.Where(a => a.CreatedOn.Value.Date >= startOfWeek);
-        //            break;
-        //        case "Monthly":
-        //            attendanceData = attendanceData.Where(a => a.CreatedOn.Value.Month == today.Month &&
-        //                                                       a.CreatedOn.Value.Year == today.Year);
-        //            break;
-        //        case "Custom":
-        //            if (startDate.HasValue && endDate.HasValue)
-        //            {
-        //                attendanceData = attendanceData.Where(a => a.CreatedOn.Value.Date >= startDate.Value &&
-        //                                                           a.CreatedOn.Value.Date <= endDate.Value);
-        //            }
-        //            break;
-        //    }
-
-        //    var resultHtml = "";
-        //    int rCnt = 1;
-        //    foreach (var record in attendanceData.ToList())
-        //    {
-        //        resultHtml += $"<tr>" +
-        //                      $"<td>{rCnt++}</td>" +
-        //                      $"<td>{record.UserName}</td>" +
-        //                      $"<td>{record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-"}</td>" +
-        //                      $"<td>{record.Designation}</td>" +
-        //                      $"<td>{record.PunchInTime?.ToString("hh:mm tt")}</td>" +
-        //                      $"<td>{record.PunchOutTime?.ToString("hh:mm tt")}</td>" +
-        //                      $"<td>{(record.GracePeriodTime >= 60 ? (record.GracePeriodTime / 60) + " hr" + (record.GracePeriodTime >= 120 ? "s" : "") : record.GracePeriodTime + " mins")}</td>" +
-        //                      $"<td>{(record.PunchInTime.HasValue ? "Present" : "Leave")}</td>" +
-        //                      $"</tr>";
-        //    }
-
-        //    return Content(resultHtml, "text/html");
-        //}
 
         public ActionResult FilterAttendance(string filterType, string startDate, string endDate, int? userId)
             {
-            DateTime today = DateTime.Today;
-            DateTime start = DateTime.MinValue;
-            DateTime end = DateTime.MaxValue;
+            //DateTime today = DateTime.Today;
+            //DateTime start = DateTime.MinValue;
+            //DateTime end = DateTime.MaxValue;
 
-            // Determine the date range based on the selected filter
-            switch (filterType)
-            {
-                case "Daily":
-                    start = today;
-                    end = today.AddDays(1).AddSeconds(-1);
-                    break;
-                case "Weekly":
-                    start = today.AddDays(-(int)today.DayOfWeek); // Start of the week (Sunday)
-                    end = start.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59); // End of the week (Saturday)
-                    break;
-                case "Monthly":
-                    start = new DateTime(today.Year, today.Month, 1); // First day of the month
-                    end = start.AddMonths(1).AddSeconds(-1); // Last day of the month
-                    break;
-                case "Custom":
-                    if (DateTime.TryParse(startDate, out DateTime parsedStart) &&
-                        DateTime.TryParse(endDate, out DateTime parsedEnd))
-                    {
-                        start = parsedStart;
-                        end = parsedEnd.AddHours(23).AddMinutes(59).AddSeconds(59); // Include full day
-                    }
-                    break;
-            }
+            //// Determine the date range based on the selected filter
+            //switch (filterType)
+            //{
+            //    case "Daily":
+            //        start = today;
+            //        end = today.AddDays(1).AddSeconds(-1);
+            //        break;
+            //    case "Weekly":
+            //        start = today.AddDays(-(int)today.DayOfWeek); // Start of the week (Sunday)
+            //        end = start.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59); // End of the week (Saturday)
+            //        break;
+            //    case "Monthly":
+            //        start = new DateTime(today.Year, today.Month, 1); // First day of the month
+            //        end = start.AddMonths(1).AddSeconds(-1); // Last day of the month
+            //        break;
+            //    case "Custom":
+            //        if (DateTime.TryParse(startDate, out DateTime parsedStart) &&
+            //            DateTime.TryParse(endDate, out DateTime parsedEnd))
+            //        {
+            //            start = parsedStart;
+            //            end = parsedEnd.AddHours(23).AddMinutes(59).AddSeconds(59); // Include full day
+            //        }
+            //        break;
+            //}
 
-            // Query attendance records based on the selected filter
-            var query = _context.attendanceEntitie
-             .Join(_context.userMasterEntitie, a => a.UserId, u => u.UserId, (a, u) => new { a, u })
-             .Where(x => x.a.PunchInTime >= start && x.a.PunchInTime <= end);
+            //// Query attendance records based on the selected filter
+            //var query = _context.attendanceEntitie
+            // .Join(_context.userMasterEntitie, a => a.UserId, u => u.UserId, (a, u) => new { a, u })
+            // .Where(x => x.a.PunchInTime >= start && x.a.PunchInTime <= end);
 
-            // Apply filter before materializing the list
-            if (userId.HasValue && userId > 0)
-            {
-                query = query.Where(x => x.a.UserId == userId.Value);
-            }
+            //// Apply filter before materializing the list
+            //if (userId.HasValue && userId > 0)
+            //{
+            //    query = query.Where(x => x.a.UserId == userId.Value);
+            //}
 
-            var records = query
-                .OrderBy(x => x.a.CreatedOn)
-                .Select(x => new AttendanceViewModel
-                {
-                    UserId = (int)x.a.UserId,
-                    UserName = x.u.UserName,
-                    CreatedOn = x.a.CreatedOn,
-                    PunchInTime = x.a.PunchInTime,
-                    PunchOutTime = x.a.PunchOutTime,
-                    GracePeriodTime = x.a.GracePeriodTime,
-                    Designation = x.u.Designation,
-                })
-                .ToList();
+            //var records = query
+            //    .OrderBy(x => x.a.CreatedOn)
+            //    .Select(x => new AttendanceViewModel
+            //    {
+            //        UserId = (int)x.a.UserId,
+            //        UserName = x.u.UserName,
+            //        CreatedOn = x.a.CreatedOn,
+            //        PunchInTime = x.a.PunchInTime,
+            //        PunchOutTime = x.a.PunchOutTime,
+            //        GracePeriodTime = x.a.GracePeriodTime,
+            //        Designation = x.u.Designation,
+            //    }).
+            //    Distinct().ToList();
+            var attendanceData = (
+  from a in _context.attendanceEntitie
+  join u in _context.userMasterEntitie on a.UserId equals u.UserId
+  where a.UserId != null
+  group a by new { a.UserId, u.UserName, u.Designation, u.Email } into g
+  select new AttendanceViewModel
+  {
+      UserId = g.Key.UserId.Value,
+      UserName = g.Key.UserName,
+      Designation = g.Key.Designation,
+      Email = g.Key.Email,
 
-            return PartialView("_AttendanceTable", records.ToList()); // Return partial view with updated data
+
+  }).Distinct().ToList();
+
+
+            return PartialView("_AttendanceTable", attendanceData.ToList()); // Return partial view with updated data
         }
 
         public IActionResult GetPunchDetails(string date)
@@ -599,54 +636,65 @@ namespace AttendanceCRM.Controllers
         }
 
         [Authorize(Policy = "EmployeeAccess")]
-        public IActionResult GetAttendanceById(int? month, int? year, int page = 1, int pageSize = 10)
+        [HttpGet]
+
+
+        public IActionResult GetAttendanceById(int? month, int? year, bool isCalendar = true)
         {
-            LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
+            var lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
             if (lr == null)
-            {
                 return RedirectToAction("Login", "Authenticate");
-            }
 
             ViewBag.UserDetails = lr;
-            ViewBag.userid = lr.userId;
 
-            if (HttpContext.Session.GetInt32("UserId") == null)
-            {
-                HttpContext.Session.SetInt32("UserId", lr.userId);
-            }
-
-            // Get filtered attendance records directly
-            var attendanceRecords = GetAttendanceByUserId(lr.userId, month, year);
-
-            if (!attendanceRecords.Any())
-            {
-                ViewBag.Message = "No attendance records found.";
-            }
-
-        
-
-        // Sort and paginate
-        var paginatedLeaves = attendanceRecords
-                .OrderByDescending(x => x.CreatedOn)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+            var data = _context.attendanceEntitie
+                .Where(a => a.UserId == lr.userId)
                 .ToList();
 
-            // Pagination metadata
-            ViewBag.CurrentPage = page;
-            ViewBag.PageSize = pageSize;
-            ViewBag.TotalItems = attendanceRecords.Count();
-            ViewBag.TotalPages = (int)Math.Ceiling((double)attendanceRecords.Count() / pageSize);
-
-            // Check if it's an AJAX request
-            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            if (isCalendar)
             {
-                return PartialView("_HolidayListTable", paginatedLeaves);
+                var events = data.Select(a => new
+                {
+                    title = a.PunchOutTime == null ? "Forgot to Punch Out"
+                        : a.TotalHours < 4 ? $"Time spent: {a.TotalHours:F2} [LOP]"
+                        : a.TotalHours < 8.5 ? $"Time spent: {a.TotalHours:F2} [Half Day]"
+                        : $"Time spent: {a.TotalHours:F2} [Full Day]",
+
+                    start = a.PunchInTime?.ToString("yyyy-MM-dd"),
+                    color = a.PunchOutTime == null ? "#6c757d"
+                        : a.TotalHours < 4 ? "#dc3545"
+                        : a.TotalHours < 8.5 ? "#ffc107"
+                        : a.WorkType == "WFO" ? "#28a745" : "#007bff"
+                });
+
+                ViewBag.CalendarEvents = JsonConvert.SerializeObject(events);
             }
 
+            return View(data);
+        }
 
 
-            return View(paginatedLeaves);
+
+        private string GetAttendanceTitle(AttendanceEntitie a)
+        {
+            if (a.Status == "Absent")
+                return "Absent";
+            if (a.WorkType == "WFO" && a.TotalHours < 9)
+                return $"Present ({a.TotalHours} hrs)";
+            if (a.WorkType == "WFO" && string.IsNullOrEmpty(a.PunchOutSelfiePath))
+                return "Missed PunchOut";
+            return $"Present ({a.TotalHours} hrs)";
+        }
+
+        private string GetAttendanceColor(AttendanceEntitie a)
+        {
+            if (a.Status == "Absent")
+                return "red";
+            if (a.WorkType == "WFO" && string.IsNullOrEmpty(a.PunchOutSelfiePath))
+                return "gray";
+            if (a.WorkType == "WFO" && a.TotalHours < 9)
+                return "yellow";
+            return "green";
         }
 
 
@@ -724,6 +772,23 @@ namespace AttendanceCRM.Controllers
                 .Count(l => l.CreatedOn.HasValue && l.CreatedOn.Value.Date == DateTime.Today);
         }
 
+        [HttpGet]
+        public IActionResult GetSummaryCounts(int month, int year)
+        {
+            // Replace this with your actual logic
+            var result = new
+            {
+                TotalDays = DateTime.DaysInMonth(year, month),
+                PresentDays = 11,
+                WeeklyOffs = 8,
+                Leaves = 2,
+                Holidays = 1,
+                Absents = 8,
+                PaidDays = 22
+            };
+
+            return Json(result);
+        }
 
 
 
@@ -852,7 +917,6 @@ namespace AttendanceCRM.Controllers
 
       
 
-        // 🔹 NEW METHOD TO UPDATE NOTIFICATION STATUS
         [HttpPost]
         public IActionResult MarkNotificationAsRead(int id)
         {
@@ -1368,82 +1432,6 @@ namespace AttendanceCRM.Controllers
             return R * c;  
         }
 
-        //private double GetDistance(double lat1, double lon1, double lat2, double lon2)
-        //{
-        //    double R = 6371e3; // Earth's radius in meters
-        //    double φ1 = lat1 * (Math.PI / 180);
-        //    double φ2 = lat2 * (Math.PI / 180);
-        //    double Δφ = (lat2 - lat1) * (Math.PI / 180);
-        //    double Δλ = (lon2 - lon1) * (Math.PI / 180);
-
-        //    double a = Math.Sin(Δφ / 2) * Math.Sin(Δφ / 2) +
-        //               Math.Cos(φ1) * Math.Cos(φ2) *
-        //               Math.Sin(Δλ / 2) * Math.Sin(Δλ / 2);
-        //    double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-
-        //    return R * c; // Distance in meters
-        //}
-
-
-
-
-
-        //[HttpPost]
-        //public async Task<IActionResult> PunchIn()
-        //{
-        //    LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
-
-        //    if (lr == null)
-        //    {
-        //        return RedirectToAction("Login", "Authenticate");
-        //    }
-
-        //    ViewBag.UserId = lr.userId;
-
-        //   string allowedIpAddress = "192.168.137.1"; 
-        //    string currentIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-
-        //    if (currentIpAddress != allowedIpAddress)
-        //    {
-        //        return BadRequest(new { message = "You can only punch in from the authorized IP address." });
-        //    }
-
-        //    var gracePeriod = TimeSpan.FromMinutes(20);
-        //    var expectedPunchInTime = DateTime.UtcNow.Date.AddHours(9).AddMinutes(30); 
-
-        //    var existingAttendance = await _context.attendanceEntitie
-        //        .Where(a => a.UserId == lr.userId && a.PunchOutTime == null)
-        //        .FirstOrDefaultAsync();
-
-        //    if (existingAttendance != null)
-        //    {
-        //        return BadRequest(new { message = "You are already punched in." });
-        //    }
-
-        //    var punchInTime = DateTime.Now;
-
-        //    bool isWithinGracePeriod = punchInTime <= expectedPunchInTime.Add(gracePeriod);
-
-        //    var minutesLate = (int)(punchInTime - expectedPunchInTime).TotalMinutes;
-        //    if (minutesLate < 0) minutesLate = 0; 
-
-        //    var attendance = new AttendanceEntitie
-        //    {
-        //        UserId = lr.userId,
-        //        PunchInTime = punchInTime,
-        //        IsActive = true,
-        //        IsDeleted = false,
-        //        CreatedOn = DateTime.Now,
-        //        CreatedBy = lr.userId,
-        //        GracePeriodTime = minutesLate
-        //    };
-
-        //    _context.attendanceEntitie.Add(attendance);
-        //    await _context.SaveChangesAsync();
-
-        //    string message = isWithinGracePeriod ? "Punched in within the grace period." : "Punched in after the grace period.";
-        //    return Ok(new { message, punchInTime = attendance.PunchInTime, minutesLate });
-        //}
 
 
         [HttpPost]
@@ -1576,46 +1564,6 @@ namespace AttendanceCRM.Controllers
         }
 
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetAttendanceStatus()
-        //{
-        //          LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
-
-        //          if (lr == null)
-        //          {
-        //              return RedirectToAction("Login", "Authenticate");
-        //          }
-
-
-        //          ViewBag.UserId = lr.userId;
-
-
-
-        //	var attendance = await _context.attendanceEntitie
-        //		.Where(a => a.UserId == lr.userId)
-        //		.OrderByDescending(a => a.AttendanceId)
-        //		.FirstOrDefaultAsync();
-
-        //	if (attendance == null)
-        //	{
-        //		return Ok(new { isPunchedIn = false, totalHours = "00:00:00" });
-        //	}
-
-        //	var isPunchedIn = attendance.PunchOutTime == null;
-        //	var totalHours = TimeSpan.Zero;
-
-        //	if (attendance.PunchInTime.HasValue && attendance.PunchOutTime.HasValue)
-        //	{
-        //		totalHours = attendance.PunchOutTime.Value - attendance.PunchInTime.Value;
-        //	}
-
-        //	return Ok(new
-        //	{
-        //		isPunchedIn,
-        //		punchInTime = attendance.PunchInTime,
-        //		totalHours = $"{(int)totalHours.TotalHours:D2}:{totalHours.Minutes:D2}:{totalHours.Seconds:D2}"
-        //	});
-        //}
 
         private int? GetLoggedInUserId()
 		{
@@ -2095,117 +2043,6 @@ namespace AttendanceCRM.Controllers
         }
 
 
-        //    public List<AttendanceReportViewModel> GenerateAttendanceReport(DateTime startDate, DateTime endDate)
-        //    {
-        //        var users = _context.userMasterEntitie.ToList();
-        //        var attendanceRecords = _context.attendanceEntitie
-        //            .Where(a => a.CreatedOn.HasValue && a.CreatedOn.Value.Date >= startDate.Date && a.CreatedOn.Value.Date <= endDate.Date)
-        //            .ToList();
-
-        //        //var leaves = _context.leavesEntitie
-        //        //    .Where(l => l.FromDate.ToDateTime(TimeOnly.MinValue) <= endDate.Date &&
-        //        //                l.ToDate.ToDateTime(TimeOnly.MinValue) >= startDate.Date)
-        //        //    .ToList();
-        //        var leaves = _context.leavesEntitie
-        //.AsEnumerable()  
-        //.Where(l => l.FromDate.ToDateTime(TimeOnly.MinValue) <= endDate.Date &&
-        //            l.ToDate.ToDateTime(TimeOnly.MinValue) >= startDate.Date)
-        //.ToList();
-
-
-        //        var leaveTypes = _context.leaveType.ToList();  // Fetch leave types
-
-        //        var holidays = _context.holidaysEntite
-        //            .Where(h => h.HolidayDate >= startDate && h.HolidayDate <= endDate)
-        //            .Select(h => h.HolidayDate)
-        //            .ToList();
-
-        //        var attendanceReport = new List<AttendanceReportViewModel>();
-
-        //        foreach (var user in users)
-        //        {
-        //            int presentDays = 0, casualLeave = 0, weekOff = 0, absent = 0, holidaysCount = 0;
-        //            double halfDays = 0, sickLeave = 0, earnedLeaves = 0;
-        //            Dictionary<int, string> dailyStatus = new();
-
-        //            for (DateTime date = startDate; date <= endDate; date = date.AddDays(1))
-        //            {
-        //                var attendance = attendanceRecords.FirstOrDefault(a => a.UserId == user.UserId && a.CreatedOn.HasValue && a.CreatedOn.Value.Date == date.Date);
-        //                var leave = leaves.FirstOrDefault(l => l.UserId == user.UserId &&
-        //                                                      l.FromDate.ToDateTime(TimeOnly.MinValue) <= date.Date &&
-        //                                                      l.ToDate.ToDateTime(TimeOnly.MinValue) >= date.Date);
-
-        //                string leaveType = leave != null
-        //                    ? leaveTypes.FirstOrDefault(lt => lt.LeaveTypeId == leave.LeaveTypeId)?.LeaveType ?? "On Leave"
-        //                    : "";
-
-        //                bool isHoliday = holidays.Any(h => h.GetValueOrDefault().Date == date.Date);
-        //                bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
-
-        //                string status = "Absent";  // Default status
-
-        //                if (attendance != null)
-        //                {
-        //                    status = "P";
-        //                    presentDays++;
-        //                }
-        //                else if (leave != null)
-        //                {
-        //                    status = leaveType switch
-        //                    {
-        //                        "Casual Leave" => "CL",
-        //                        "Sick Leave" => "SL",
-        //                        "Annual Leave" => "AL",
-        //                        "Paid Leave" => "PL",
-        //                        _ => "L"
-        //                    };
-
-        //                    if (leaveType == "Casual Leave") casualLeave++;
-        //                    else if (leaveType == "Sick Leave") sickLeave++;
-        //                    else if (leaveType == "Annual Leave") earnedLeaves++;
-        //                }
-        //                else if (isHoliday)
-        //                {
-        //                    status = "H";
-        //                    holidaysCount++;
-        //                }
-        //                else if (isWeekend)
-        //                {
-        //                    status = "WO";
-        //                    weekOff++;
-        //                }
-        //                else
-        //                {
-        //                    absent++;
-        //                }
-
-        //                dailyStatus[date.Day] = status;
-        //            }
-
-        //            double finalPaidDays = presentDays + (halfDays * 0.5) + earnedLeaves;
-
-        //            attendanceReport.Add(new AttendanceReportViewModel
-        //            {
-        //                UserId = user.UserId,
-        //                UserName = user.UserName,
-        //                Designation = user.Designation,
-        //                //  Department = user.Department,
-        //                DOJ = user.DateOfJoining ?? DateTime.MinValue,
-        //                PresentDays = presentDays,
-        //                CasualLeave = casualLeave,
-        //                WeekOff = weekOff,
-        //                Absent = absent,
-        //                Holidays = holidaysCount,
-        //                HalfDay = halfDays,
-        //                SickLeave = (int)sickLeave,
-        //                EarnedLeaves = (int)earnedLeaves,
-        //                FinalPaidDays = finalPaidDays,
-        //                DailyStatus = dailyStatus
-        //            });
-        //        }
-
-        //        return attendanceReport;
-        //    }
 
 
 

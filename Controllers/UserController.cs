@@ -101,7 +101,7 @@ namespace AttendanceCRM.Controllers
             ViewBag.TotalItems = allLeaves.Count();
             ViewBag.TotalPages = (int)Math.Ceiling((double)allLeaves.Count() / pageSize);
             ViewBag.SearchTerm = searchTerm;
-
+            ViewBag.Role = lr.userTypeName;
             // Check if it's an AJAX request
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
@@ -352,10 +352,7 @@ namespace AttendanceCRM.Controllers
             }
 
             try
-            {
-                if (ModelState.IsValid)
-                {
-                   
+            { 
                     var existingUser = _context.userMasterEntitie
                         .FirstOrDefault(u => u.EmployeeId == model.EmployeeId ||
                                              u.Email == model.Email ||
@@ -410,7 +407,7 @@ namespace AttendanceCRM.Controllers
                     {
                         ViewBag.ErrorMessage = res.message;
                     }
-                }
+                
             }
             catch (Exception e)
             {
@@ -430,8 +427,8 @@ namespace AttendanceCRM.Controllers
 			LoginResponseModel lr = new LoginResponseModel();
 			lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
 			ViewBag.UserDetails = lr;
-
-			if (lr == null)
+            ViewBag.Role = lr.userTypeName;
+            if (lr == null)
 			{
 				return RedirectToAction("Login");
 			}
@@ -545,7 +542,7 @@ namespace AttendanceCRM.Controllers
             u.CollegeName = model.CollegeName;
             u.Designation = model.Designation;
             u.DepartmentId = model.DepartmentId;
-
+            u.EmployeeStatus = model.Status;
             // Check for duplicates based on EmployeeId, AdharNumber, and PanNumber, excluding null values
             int count = _context.userMasterEntitie
                                 .Where(a => a.EmployeeId == u.EmployeeId && a.IsDeleted == false)

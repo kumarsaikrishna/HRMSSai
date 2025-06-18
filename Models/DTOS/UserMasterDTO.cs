@@ -22,7 +22,7 @@ namespace AttendanceCRM.Models.DTOS
 
         public string? ProfilePicture { get; set; }
 
-      
+        public bool Status { get; set; }
 
         public string? CollegeName { get; set; }
 
