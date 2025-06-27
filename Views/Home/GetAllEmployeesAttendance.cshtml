@@ -1,64 +1,10 @@
 @model List<AttendanceCRM.Models.DTOS.AttendanceViewModel>
 
-
 @{
     int rCnt = 1;
 }
-
-
 <script>
-    // $(document).ready(function () {
-    //     // Enable/Disable date fields based on the selected filter
-    //     $("input[name='dateFilter']").change(function () {
-    //         if ($("#custom").is(":checked")) {
-    //             $("#startDate, #endDate").prop("disabled", false);
-    //         } else {
-    //             $("#startDate, #endDate").prop("disabled", true);
-    //         }
-    //     });
-
-
-    //     // $("#filterBtn").click(function () {
-    //     //     let filterType = $("input[name='dateFilter']:checked").val();
-    //     //     let startDate = $("#startDate").val();
-    //     //     let endDate = $("#endDate").val();
-
-    //     //     $.ajax({
-    //     //         url: "@Url.Action("FilterAttendance", "Home")",
-    //     //         type: "GET",
-    //     //         data: { filterType: filterType, startDate: startDate, endDate: endDate },
-    //     //         success: function (data) {
-    //     //             $("#attendanceBody").html(data);
-    //     //         },
-    //     //         error: function (xhr, status, error) {
-    //     //             console.log("Error: " + error);
-    //     //         }
-    //     //     });
-    //     // });
-    //     $("#filterBtn").click(function () {
-    //         let filterType = $("input[name='dateFilter']:checked").val();
-    //         let startDate = $("#startDate").val();
-    //         let endDate = $("#endDate").val();
-    //         let userId = $("#userId").val();
-
-    //         $.ajax({
-    //             url: "@Url.Action("FilterAttendance", "Home")",
-    //             type: "GET",
-    //             data: { filterType: filterType, startDate: startDate, endDate: endDate, userId: userId },
-    //             success: function (data) {
-    //                 $("#attendanceBody").html(data);
-    //             },
-    //             error: function (xhr, status, error) {
-    //                 console.log("Error: " + error);
-    //             }
-    //         });
-    //     });
-
-
-
-
-    // });
-          $(document).ready(function () {
+    $(document).ready(function () {
         $("input[name='dateFilter']").change(function () {
             if ($("#custom").is(":checked")) {
                 $("#startDate, #endDate").prop("disabled", false);
@@ -67,7 +13,6 @@
                 filterAttendance();
             }
         });
-
 
         $("input[name='dateFilter']").change(filterAttendance);
         $("#startDate, #endDate, #userId").change(filterAttendance);
@@ -97,14 +42,13 @@
         $("#endDate").val(today);
         filterAttendance();
     });
-
-
 </script>
+
 <script>
     function downloadExcel() {
         var startDate = document.getElementById("startDate").value;
         var endDate = document.getElementById("endDate").value;
-        var userId = document.getElementById("userId")?.value; // Optional
+        var userId = document.getElementById("userId")?.value;
 
         if (!startDate || !endDate) {
             alert("Please select Start Date and End Date!");
@@ -121,13 +65,10 @@
     }
 </script>
 
-
-
 <div class="card">
     <div class="card-header">
         <h5>Attendance List</h5>
         <hr />
-
         <div class="row">
             <div class="col-sm-6 d-flex align-items-center">
                 <label class="me-2">Filter By:</label>
@@ -155,27 +96,16 @@
                 @Html.DropDownList("userId", ViewBag.Users as SelectList, "Select User", new { @class = "form-control" })
             </div>
             <div class="col-sm-4 d-flex">
-
                 <input type="date" id="startDate" class="form-control me-2" disabled>
                 <input type="date" id="endDate" class="form-control me-2" disabled>
-
-                @*   <div class="col-sm-4">
-                    <button class="btn btn-primary" id="filterBtn">Apply</button>
-                </div> *@
 
                 <div class="col-sm-0 d-flex justify-content-end">
                     <button class="btn btn-primary text-nowrap" onclick="downloadExcel()">Download Excel</button>
                 </div>
             </div>
-
-
-
         </div>
     </div>
 </div>
-
-
-
 
 <div class="card-body p-0">
     <div class="table-responsive">
@@ -188,33 +118,15 @@
                     <th>Email</th>
                 </tr>
             </thead>
-            @*      <tbody id="attendanceBody">
-                @foreach (var record in Model)
-                {
-                    <tr>
-                        <td>@(rCnt++)</td>
-                        <td>@record.UserName</td>
-                        <td>@(record.CreatedOn?.ToString("dd-MM-yyyy") ?? "-")</td>
-                        <td>@record.Designation</td>
-                        <td>@record.PunchInTime?.ToString("hh:mm tt")</td>
-                        <td>@record.PunchOutTime?.ToString("hh:mm tt")</td>
-                        <td>
-                            @(record.GracePeriodTime >= 60
-                                ? (record.GracePeriodTime / 60) + " hr" + (record.GracePeriodTime >= 120 ? "s" : "")
-                                : record.GracePeriodTime + " mins")
-                        </td>
-                        <td>@(record.PunchInTime.HasValue ? "Present" : "Leave")</td>
-                    </tr>
-                }
-            </tbody> *@
             <tbody id="attendanceBody">
                 @Html.Partial("_AttendanceTable", Model)
             </tbody>
         </table>
     </div>
 </div>
+
 <div class="modal fade" id="punchDetailsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog" style="max-width: 95%; width: 95%;" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Punch Details</h5>
@@ -226,14 +138,27 @@
         </div>
     </div>
 </div>
+
 <script>
     $(document).on("click", ".employee-link", function (e) {
         e.preventDefault();
 
         var userId = $(this).data("userid");
         var filterType = $("input[name='dateFilter']:checked").val();
-        var startDate = $("#startDate").val();
-        var endDate = $("#endDate").val();
+        var startDate, endDate;
+
+        if (filterType === "Daily") {
+            const today = new Date().toISOString().split('T')[0];
+            startDate = endDate = today;
+        } else {
+            // Temporarily enable to read
+            $("#startDate, #endDate").prop("disabled", false);
+            startDate = $("#startDate").val();
+            endDate = $("#endDate").val();
+            if (filterType !== "Custom") {
+                $("#startDate, #endDate").prop("disabled", true);
+            }
+        }
 
         $.ajax({
             url: "/Common/GetPunchDetails",

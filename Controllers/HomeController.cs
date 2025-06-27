@@ -21,31 +21,25 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 
-
-
-
-
-
-
 namespace AttendanceCRM.Controllers
 {
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-		private readonly MyDbContext _context;
-		private readonly IUserService _service;
+        private readonly MyDbContext _context;
+        private readonly IUserService _service;
         private readonly IMasterMgmtService _mService;
         private readonly ILeaveTypeMaster _TService;
-        
+
         private readonly Microsoft.AspNetCore.Hosting.IHostingEnvironment _hostingEnvironment;
 
 
-        public HomeController(ILogger<HomeController> logger, MyDbContext context, IUserService service,IMasterMgmtService mService, ILeaveTypeMaster TService, Microsoft.AspNetCore.Hosting.IHostingEnvironment hostingEnvironment)
+        public HomeController(ILogger<HomeController> logger, MyDbContext context, IUserService service, IMasterMgmtService mService, ILeaveTypeMaster TService, Microsoft.AspNetCore.Hosting.IHostingEnvironment hostingEnvironment)
         {
             _logger = logger;
-			_context = context;
-			_service = service;
-			_mService = mService;
+            _context = context;
+            _service = service;
+            _mService = mService;
             _TService = TService;
             _hostingEnvironment = hostingEnvironment;
         }
@@ -146,7 +140,7 @@ namespace AttendanceCRM.Controllers
                 DateOfJoining = user?.DateOfJoining,
                 EmployeeId = user?.EmployeeId,
                 ProfilePicture = user?.ProfilePicture,
-                TotalLeaves=totalLeaves,
+                TotalLeaves = totalLeaves,
                 Taken = takenLeaves,
                 Absent = absentLeaves,
                 Requests = requestedLeaves,
@@ -156,7 +150,7 @@ namespace AttendanceCRM.Controllers
             ViewBag.SelectedYear = selectedYear;
 
             // Calculate today's attendance hours
-         
+
             var todayAttendance = _context.attendanceEntitie
                 .Where(a => a.UserId == lr.userId && a.PunchInTime.Value.Date == today)
                 .ToList();
@@ -181,7 +175,7 @@ namespace AttendanceCRM.Controllers
             ViewBag.TotalWorkHoursWeek = totalWorkHoursWeek;
 
             var nextHoliday = await _context.holidaysEntite
-                .Where(h => h.HolidayDate >= DateTime.UtcNow.Date && h.IsDeleted==false)
+                .Where(h => h.HolidayDate >= DateTime.UtcNow.Date && h.IsDeleted == false)
                 .OrderBy(h => h.HolidayDate)
                 .FirstOrDefaultAsync();
 
@@ -303,14 +297,14 @@ namespace AttendanceCRM.Controllers
         public IActionResult AutoMarkAbsent()
         {
             var today = DateTime.Today;
-            var userId = GetCurrentUserId(); 
+            var userId = GetCurrentUserId();
 
             if (string.IsNullOrEmpty(userId))
             {
                 return Json(new { message = "User not authenticated." });
             }
 
-            int currentUserId = int.Parse(GetCurrentUserId());  
+            int currentUserId = int.Parse(GetCurrentUserId());
 
             var attendance = _context.attendanceEntitie
                 .FirstOrDefault(a => a.UserId == currentUserId && a.CreatedOn == today);
@@ -339,8 +333,8 @@ namespace AttendanceCRM.Controllers
 
         }
 
-       
-         
+
+
         public IActionResult Privacy()
         {
             return View();
@@ -353,11 +347,11 @@ namespace AttendanceCRM.Controllers
         }
 
 
-		
-		public IActionResult UserList()
-		{
-			return View();
-		}
+
+        public IActionResult UserList()
+        {
+            return View();
+        }
 
 
         [Authorize(Policy = "AdminAccess")]
@@ -378,9 +372,12 @@ namespace AttendanceCRM.Controllers
             }
 
             var users = _context.userMasterEntitie
-                .Where(u => u.UserTypeId == 3)
-                .Select(u => new { u.UserId, u.UserName })
-                .ToList();
+        .Where(u => u.UserTypeId == 3 && u.EmployeeStatus == true)
+        .Select(u => new { u.UserId, u.UserName })
+        .ToList();
+
+
+
             ViewBag.Users = new SelectList(users, "UserId", "UserName");
 
             // Fetch attendance records for all employees
@@ -409,7 +406,6 @@ namespace AttendanceCRM.Controllers
             ViewBag.TotalPages = (int)Math.Ceiling((double)allAttendanceRecords.Count() / pageSize);
             ViewBag.SearchTerm = searchTerm;
 
-            // Check if it's an AJAX request
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
                 return PartialView("_AttendanceList", paginatedLeaves);
@@ -423,7 +419,7 @@ namespace AttendanceCRM.Controllers
         }
 
         [HttpGet]
-       
+
         public IActionResult GetCalendarAttendance()
         {
             int userId = int.Parse(User.FindFirstValue("UserID"));
@@ -485,20 +481,20 @@ namespace AttendanceCRM.Controllers
 
         public List<AttendanceViewModel> GetAllEmployeesAttendanceRecords(string searchTerm = null)
         {
-           var attendanceData = (
-    from a in _context.attendanceEntitie
-    join u in _context.userMasterEntitie on a.UserId equals u.UserId
-    where a.UserId != null
-    group a by new { a.UserId, u.UserName, u.Designation,u.Email } into g
-    select new AttendanceViewModel
-    {
-        UserId = g.Key.UserId.Value,
-        UserName = g.Key.UserName,
-        Designation = g.Key.Designation,
-        Email=g.Key.Email,
-       
-        
-    }).Distinct().ToList();
+            var attendanceData = (
+           from a in _context.attendanceEntitie
+           join u in _context.userMasterEntitie
+               on a.UserId equals u.UserId
+           where u.EmployeeStatus == true
+           group a by new { a.UserId, u.UserName, u.Designation, u.Email } into g
+           select new AttendanceViewModel
+           {
+               UserId = g.Key.UserId.Value,
+               UserName = g.Key.UserName,
+               Designation = g.Key.Designation,
+               Email = g.Key.Email
+           }).ToList();
+
 
             return attendanceData.OrderByDescending(x => x.PunchInTime).ToList();
 
@@ -533,77 +529,42 @@ namespace AttendanceCRM.Controllers
 
 
         public ActionResult FilterAttendance(string filterType, string startDate, string endDate, int? userId)
+        {
+            List<AttendanceViewModel> attendanceData;
+
+            if (filterType == "Daily")
             {
-            //DateTime today = DateTime.Today;
-            //DateTime start = DateTime.MinValue;
-            //DateTime end = DateTime.MaxValue;
+                attendanceData = (
+                    from a in _context.attendanceEntitie
+                    join u in _context.userMasterEntitie on a.UserId equals u.UserId
+                    where u.EmployeeStatus == true &&
+                          a.CreatedOn.HasValue && a.CreatedOn.Value.Date == DateTime.Today
+                    group a by new { a.UserId, u.UserName, u.Designation, u.Email } into g
+                    select new AttendanceViewModel
+                    {
+                        UserId = g.Key.UserId.Value,
+                        UserName = g.Key.UserName,
+                        Designation = g.Key.Designation,
+                        Email = g.Key.Email,
+                    }).Distinct().ToList();
+            }
+            else
+            {
+                attendanceData = (
+                    from a in _context.attendanceEntitie
+                    join u in _context.userMasterEntitie on a.UserId equals u.UserId
+                    where u.EmployeeStatus == true
+                    group a by new { a.UserId, u.UserName, u.Designation, u.Email } into g
+                    select new AttendanceViewModel
+                    {
+                        UserId = g.Key.UserId.Value,
+                        UserName = g.Key.UserName,
+                        Designation = g.Key.Designation,
+                        Email = g.Key.Email,
+                    }).Distinct().ToList();
+            }
 
-            //// Determine the date range based on the selected filter
-            //switch (filterType)
-            //{
-            //    case "Daily":
-            //        start = today;
-            //        end = today.AddDays(1).AddSeconds(-1);
-            //        break;
-            //    case "Weekly":
-            //        start = today.AddDays(-(int)today.DayOfWeek); // Start of the week (Sunday)
-            //        end = start.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59); // End of the week (Saturday)
-            //        break;
-            //    case "Monthly":
-            //        start = new DateTime(today.Year, today.Month, 1); // First day of the month
-            //        end = start.AddMonths(1).AddSeconds(-1); // Last day of the month
-            //        break;
-            //    case "Custom":
-            //        if (DateTime.TryParse(startDate, out DateTime parsedStart) &&
-            //            DateTime.TryParse(endDate, out DateTime parsedEnd))
-            //        {
-            //            start = parsedStart;
-            //            end = parsedEnd.AddHours(23).AddMinutes(59).AddSeconds(59); // Include full day
-            //        }
-            //        break;
-            //}
-
-            //// Query attendance records based on the selected filter
-            //var query = _context.attendanceEntitie
-            // .Join(_context.userMasterEntitie, a => a.UserId, u => u.UserId, (a, u) => new { a, u })
-            // .Where(x => x.a.PunchInTime >= start && x.a.PunchInTime <= end);
-
-            //// Apply filter before materializing the list
-            //if (userId.HasValue && userId > 0)
-            //{
-            //    query = query.Where(x => x.a.UserId == userId.Value);
-            //}
-
-            //var records = query
-            //    .OrderBy(x => x.a.CreatedOn)
-            //    .Select(x => new AttendanceViewModel
-            //    {
-            //        UserId = (int)x.a.UserId,
-            //        UserName = x.u.UserName,
-            //        CreatedOn = x.a.CreatedOn,
-            //        PunchInTime = x.a.PunchInTime,
-            //        PunchOutTime = x.a.PunchOutTime,
-            //        GracePeriodTime = x.a.GracePeriodTime,
-            //        Designation = x.u.Designation,
-            //    }).
-            //    Distinct().ToList();
-            var attendanceData = (
-  from a in _context.attendanceEntitie
-  join u in _context.userMasterEntitie on a.UserId equals u.UserId
-  where a.UserId != null
-  group a by new { a.UserId, u.UserName, u.Designation, u.Email } into g
-  select new AttendanceViewModel
-  {
-      UserId = g.Key.UserId.Value,
-      UserName = g.Key.UserName,
-      Designation = g.Key.Designation,
-      Email = g.Key.Email,
-
-
-  }).Distinct().ToList();
-
-
-            return PartialView("_AttendanceTable", attendanceData.ToList()); // Return partial view with updated data
+            return PartialView("_AttendanceTable", attendanceData);
         }
 
         public IActionResult GetPunchDetails(string date)
@@ -653,19 +614,97 @@ namespace AttendanceCRM.Controllers
 
             if (isCalendar)
             {
-                var events = data.Select(a => new
-                {
-                    title = a.PunchOutTime == null ? "Forgot to Punch Out"
-                        : a.TotalHours < 4 ? $"Time spent: {a.TotalHours:F2} [LOP]"
-                        : a.TotalHours < 8.5 ? $"Time spent: {a.TotalHours:F2} [Half Day]"
-                        : $"Time spent: {a.TotalHours:F2} [Full Day]",
+                var publicHolidays = new List<DateTime>
+{
+    new DateTime(2025, 1, 26), // Republic Day
+    new DateTime(2025, 8, 15), // Independence Day
+    new DateTime(2025, 10, 2), // Gandhi Jayanti
+    // Add your holidays here
+};
 
-                    start = a.PunchInTime?.ToString("yyyy-MM-dd"),
-                    color = a.PunchOutTime == null ? "#6c757d"
-                        : a.TotalHours < 4 ? "#dc3545"
-                        : a.TotalHours < 8.5 ? "#ffc107"
-                        : a.WorkType == "WFO" ? "#28a745" : "#007bff"
-                });
+                // Find the range from min to max date based on available PunchIn or PunchOut
+                var minDate = data.Min(d => d.PunchInTime?.Date ?? d.PunchOutTime?.Date) ?? DateTime.Today;
+                var maxDate = data.Max(d => d.PunchInTime?.Date ?? d.PunchOutTime?.Date) ?? DateTime.Today;
+
+                var allDates = Enumerable.Range(0, (maxDate - minDate).Days + 1)
+                    .Select(offset => minDate.AddDays(offset))
+                    .ToList();
+                var events = new List<object>();
+
+                foreach (var date in allDates)
+                {
+                    var attendance = data.FirstOrDefault(a =>
+                        a.PunchInTime.HasValue && a.PunchInTime.Value.Date == date.Date);
+
+                    if (attendance != null)
+                    {
+                        double totalHours = 0;
+                        if (attendance.PunchOutTime.HasValue)
+                        {
+                            totalHours = (attendance.PunchOutTime.Value - attendance.PunchInTime.Value).TotalHours;
+                        }
+
+                        var status = attendance.PunchOutTime == null ? "Forgot to Punch Out" :
+                                     totalHours <= 4 ? "Half Day" :
+                                     totalHours < 8.5 ? "Half Day" :
+                                     "Full Day";
+
+                        var title = attendance.PunchOutTime == null
+                            ? "Forgot to Punch Out"
+                            : $"Time spent: {totalHours:F2} [{status}]";
+
+                        var color = attendance.PunchOutTime == null ? "#6c757d" :
+                                    totalHours <= 4 ? "#dc3545" :
+                                    totalHours < 8.5 ? "#ffc107" :
+                                    attendance.WorkType == "WFO" ? "#28a745" : "#007bff";
+
+                        events.Add(new
+                        {
+                            title,
+                            start = date.ToString("yyyy-MM-dd"),
+                            color,
+                            extendedProps = new
+                            {
+                                punchIn = attendance.PunchInTime?.ToString("HH:mm") ?? "-",
+                                punchOut = attendance.PunchOutTime?.ToString("HH:mm") ?? "-",
+                                punchInSelfie = attendance.SelfiePath ?? "",
+                                punchOutSelfie = attendance.PunchOutSelfiePath ?? "",
+                                workType = attendance.WorkType ?? "",
+                                lat = attendance.Latitude,
+                                lng = attendance.Longitude,
+                                punchOutLat = attendance.PunchOutLatitude,
+                                punchOutLng = attendance.PunchOutLongitude
+                            }
+                        });
+
+                        continue;
+                    }
+
+                    // Absent logic (if not holiday or weekend)
+                    if (date.DayOfWeek != DayOfWeek.Saturday &&
+                        date.DayOfWeek != DayOfWeek.Sunday &&
+                        !publicHolidays.Contains(date.Date))
+                    {
+                        events.Add(new
+                        {
+                            title = "Absent",
+                            start = date.ToString("yyyy-MM-dd"),
+                            color = "#dc3545",
+                            extendedProps = new
+                            {
+                                punchIn = "-",
+                                punchOut = "-",
+                                punchInSelfie = "",
+                                punchOutSelfie = "",
+                                workType = "",
+                                lat = "",
+                                lng = "",
+                                punchOutLat = "",
+                                punchOutLng = ""
+                            }
+                        });
+                    }
+                }
 
                 ViewBag.CalendarEvents = JsonConvert.SerializeObject(events);
             }
@@ -761,7 +800,7 @@ namespace AttendanceCRM.Controllers
                 }
             }
 
-        
+
 
             return result;
         }
@@ -915,7 +954,7 @@ namespace AttendanceCRM.Controllers
             return View(model);
         }
 
-      
+
 
         [HttpPost]
         public IActionResult MarkNotificationAsRead(int id)
@@ -1055,7 +1094,7 @@ namespace AttendanceCRM.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetPunchDetails( DateTime date)
+        public IActionResult GetPunchDetails(DateTime date)
         {
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
             if (lr == null)
@@ -1196,49 +1235,49 @@ namespace AttendanceCRM.Controllers
 
 
         [HttpPost]
-		public async Task<IActionResult> AutoPunchOut()
-		{
-			LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
+        public async Task<IActionResult> AutoPunchOut()
+        {
+            LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
 
-			if (lr == null)
-			{
-				return Unauthorized(new { message = "User not logged in" });
-			}
+            if (lr == null)
+            {
+                return Unauthorized(new { message = "User not logged in" });
+            }
 
-			var attendance = await _context.attendanceEntitie
-				.Where(a => a.UserId == lr.userId && a.PunchOutTime == null)
-				.OrderByDescending(a => a.AttendanceId)
-				.FirstOrDefaultAsync();
+            var attendance = await _context.attendanceEntitie
+                .Where(a => a.UserId == lr.userId && a.PunchOutTime == null)
+                .OrderByDescending(a => a.AttendanceId)
+                .FirstOrDefaultAsync();
 
-			if (attendance == null)
-			{
-				return NotFound(new { message = "No active attendance record found" });
-			}
+            if (attendance == null)
+            {
+                return NotFound(new { message = "No active attendance record found" });
+            }
 
-			// Auto punch-out at 11:59 PM
-			DateTime punchOutTime = DateTime.Today.AddHours(23).AddMinutes(59).AddSeconds(59);
-			attendance.PunchOutTime = punchOutTime;
-			attendance.ProductionDuration = (int)(attendance.PunchOutTime - attendance.PunchInTime)?.TotalMinutes;
-			attendance.UpdatedOn = DateTime.Now;
-			attendance.UpdatedBy = lr.userId;
+            // Auto punch-out at 11:59 PM
+            DateTime punchOutTime = DateTime.Today.AddHours(23).AddMinutes(59).AddSeconds(59);
+            attendance.PunchOutTime = punchOutTime;
+            attendance.ProductionDuration = (int)(attendance.PunchOutTime - attendance.PunchInTime)?.TotalMinutes;
+            attendance.UpdatedOn = DateTime.Now;
+            attendance.UpdatedBy = lr.userId;
 
-			_context.attendanceEntitie.Update(attendance);
-			await _context.SaveChangesAsync();
+            _context.attendanceEntitie.Update(attendance);
+            await _context.SaveChangesAsync();
 
-			return Ok(new { message = "Auto Punch-Out Successful", punchOutTime });
-		}
-
-
-		// Helper method to calculate percentage change
-		private double CalculatePercentageChange(int total, int present)
-		{
-			if (total == 0) return 0;
-			return ((double)present / total) * 100;
-		}
+            return Ok(new { message = "Auto Punch-Out Successful", punchOutTime });
+        }
 
 
-		public IActionResult PresentList()
-		{
+        // Helper method to calculate percentage change
+        private double CalculatePercentageChange(int total, int present)
+        {
+            if (total == 0) return 0;
+            return ((double)present / total) * 100;
+        }
+
+
+        public IActionResult PresentList()
+        {
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
             if (lr == null)
             {
@@ -1249,18 +1288,18 @@ namespace AttendanceCRM.Controllers
             ViewBag.UserDetails = lr;
             ViewBag.username = lr.userName;
             var res = _mService.PresentList();
-			return View(res);
+            return View(res);
 
         }
 
 
         public async Task<IActionResult> AttendanceStatus()
         {
-             
+
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
             if (lr == null) return Unauthorized(new { message = "User not logged in" });
 
-            
+
             var lastAttendance = await _context.attendanceEntitie
                 .Where(a => a.UserId == lr.userId)
                 .OrderByDescending(a => a.PunchInTime)
@@ -1395,8 +1434,8 @@ namespace AttendanceCRM.Controllers
                 Latitude = latitude,
                 Longitude = longitude,
                 SelfiePath = selfiePath,
-                WorkType=WorkType,
-                Reason= WFHReason,
+                WorkType = WorkType,
+                Reason = WFHReason,
                 GracePeriodTime = minutesLate,
                 IsActive = true,
                 IsDeleted = false,
@@ -1420,7 +1459,7 @@ namespace AttendanceCRM.Controllers
 
         private double GetDistance(double lat1, double lon1, double lat2, double lon2)
         {
-            double R = 6371000; 
+            double R = 6371000;
             double dLat = (lat2 - lat1) * Math.PI / 180;
             double dLon = (lon2 - lon1) * Math.PI / 180;
 
@@ -1429,13 +1468,13 @@ namespace AttendanceCRM.Controllers
                        Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
 
             double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;  
+            return R * c;
         }
 
 
 
         [HttpPost]
-        public async Task<IActionResult> PunchOut(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude,string TotalHours)
+        public async Task<IActionResult> PunchOut(IFormFile Selfie, [FromForm] double latitude, [FromForm] double longitude, string TotalHours)
         {
             // Get logged in user from session
             LoginResponseModel lr = SessionHelper.GetObjectFromJson<LoginResponseModel>(HttpContext.Session, "loggedUser");
@@ -1474,7 +1513,7 @@ namespace AttendanceCRM.Controllers
             attendance.PunchOutLongitude = longitude;
             attendance.PunchOutSelfiePath = selfiePath;
             attendance.PunchOutTime = DateTime.Now;
-            attendance.TotalHours =Convert.ToDouble(TotalHours);
+            attendance.TotalHours = Convert.ToDouble(TotalHours);
             attendance.ProductionDuration = (int)(attendance.PunchOutTime - attendance.PunchInTime)?.TotalMinutes;
             attendance.UpdatedOn = DateTime.Now;
             attendance.UpdatedBy = lr.userId;
@@ -1566,30 +1605,30 @@ namespace AttendanceCRM.Controllers
 
 
         private int? GetLoggedInUserId()
-		{
-			// Replace with your actual authentication logic
-			return 1; // Example hardcoded User ID
-		}
+        {
+            // Replace with your actual authentication logic
+            return 1; // Example hardcoded User ID
+        }
 
 
 
 
-		public void CalculateWorkHours()
-		{
-			// Example collection of weekAttendance
-			List<AttendanceEntitie> weekAttendance = new List<AttendanceEntitie>
-	{
-		new AttendanceEntitie { PunchInTime = DateTime.Parse("2025-01-01 09:00:00"), PunchOutTime = DateTime.Parse("2025-01-01 17:00:00") },
-		new AttendanceEntitie { PunchInTime = DateTime.Parse("2025-01-02 09:00:00"), PunchOutTime = DateTime.Parse("2025-01-02 17:30:00") }
-	};
+        public void CalculateWorkHours()
+        {
+            // Example collection of weekAttendance
+            List<AttendanceEntitie> weekAttendance = new List<AttendanceEntitie>
+    {
+        new AttendanceEntitie { PunchInTime = DateTime.Parse("2025-01-01 09:00:00"), PunchOutTime = DateTime.Parse("2025-01-01 17:00:00") },
+        new AttendanceEntitie { PunchInTime = DateTime.Parse("2025-01-02 09:00:00"), PunchOutTime = DateTime.Parse("2025-01-02 17:30:00") }
+    };
 
-			var totalWorkHoursWeek = weekAttendance
-				.Where(a => a.PunchInTime != null && a.PunchOutTime.HasValue) // Ensure PunchInTime and PunchOutTime are not null
-				.Select(a => (a.PunchOutTime.Value - a.PunchInTime.Value).TotalHours)  // Calculate the difference in hours
-				.Sum();
+            var totalWorkHoursWeek = weekAttendance
+                .Where(a => a.PunchInTime != null && a.PunchOutTime.HasValue) // Ensure PunchInTime and PunchOutTime are not null
+                .Select(a => (a.PunchOutTime.Value - a.PunchInTime.Value).TotalHours)  // Calculate the difference in hours
+                .Sum();
 
-			Console.WriteLine("Total Work Hours This Week: " + totalWorkHoursWeek);
-		}
+            Console.WriteLine("Total Work Hours This Week: " + totalWorkHoursWeek);
+        }
 
 
 
@@ -1603,7 +1642,7 @@ namespace AttendanceCRM.Controllers
         {
             // Fetch the employee details from the database
             var user = _context.userMasterEntitie
-                .FirstOrDefault(u => u.UserId == userId && u.IsDeleted==false && u.IsActive==true);
+                .FirstOrDefault(u => u.UserId == userId && u.IsDeleted == false && u.IsActive == true);
 
             if (user == null)
             {
@@ -1817,7 +1856,7 @@ namespace AttendanceCRM.Controllers
         {
             // Set EPPlus license context
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-            List<AttendanceReportViewModel> report = GenerateAttendanceReport(startDate, endDate,userId);
+            List<AttendanceReportViewModel> report = GenerateAttendanceReport(startDate, endDate, userId);
 
             using (ExcelPackage package = new ExcelPackage())
             {
@@ -2010,7 +2049,7 @@ namespace AttendanceCRM.Controllers
                     }
                 }
 
-                double finalPaidDays = presentDays + (halfDays * 0.5) + earnedLeaves + holidaysCount+casualLeave;
+                double finalPaidDays = presentDays + (halfDays * 0.5) + earnedLeaves + holidaysCount + casualLeave;
 
                 attendanceReport.Add(new AttendanceReportViewModel
                 {

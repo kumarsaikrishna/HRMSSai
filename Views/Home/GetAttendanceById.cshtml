@@ -35,7 +35,7 @@
                 </ul>
 
                 <div class="tab-content">
-                    <!-- Swipes -->
+                    <!-- Swipes Tab -->
                     <div class="tab-pane fade show active" id="modal-swipes">
                         <table class="table table-bordered text-center">
                             <thead>
@@ -69,6 +69,7 @@
                         </table>
                     </div>
 
+                    <!-- Incident Tab -->
                     <div class="tab-pane fade" id="modal-incident">
                         <p>Incident details will appear here.</p>
                     </div>
@@ -77,7 +78,8 @@
         </div>
     </div>
 </div>
-<!-- Incident Selection Modal -->
+
+<!-- Incident Modal -->
 <div id="incidentTypeModal" class="modal fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -98,7 +100,6 @@
                             <option value="Other">Other</option>
                         </select>
                     </div>
-
                     <div class="col-md-6" id="purposeDiv" style="display:none;">
                         <label class="form-label">Purpose</label>
                         <select class="form-select" id="incidentPurpose">
@@ -109,12 +110,10 @@
                             <option>Personal</option>
                         </select>
                     </div>
-
                     <div class="col-md-6">
                         <label class="form-label">Date</label>
                         <input type="text" id="incidentDate" class="form-control" readonly />
                     </div>
-
                     <div class="col-md-6" id="swipeDiv" style="display:none;">
                         <label class="form-label">In/Out Swipes <span class="text-danger">*</span></label>
                         <select id="swipeType" class="form-select">
@@ -123,18 +122,11 @@
                             <option value="Out">Out</option>
                         </select>
                     </div>
-
                     <div class="col-12">
                         <label class="form-label">Reason <span class="text-danger">*</span></label>
                         <textarea class="form-control" rows="3" id="incidentReason" placeholder="Describe your reason..." required></textarea>
                     </div>
-@* 
-                    <div class="col-12">
-                        <label class="form-label">Upload Document(s)</label>
-                        <input type="file" class="form-control" multiple />
-                    </div> *@
                 </div>
-
                 <div class="modal-footer px-4">
                     <button type="submit" class="btn btn-primary">Apply</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -144,15 +136,14 @@
     </div>
 </div>
 
-
-<!-- SweetAlert -->
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
     let selectedPunchEventProps = null;
 
     function getAddressFromCoordinates(lat, lng, callback) {
-        const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with real key
+        const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace this
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
 
         fetch(url)
@@ -172,41 +163,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         const calendarEl = document.getElementById('attendanceCalendar');
-        const events = [];
-
-        @foreach (var item in Model)
-        {
-                var status = item.PunchOutTime == null ? "Forgot to Punch Out" :
-                                          item.TotalHours < 4 ? "Absent" :
-                                          item.TotalHours < 8.5 ? "Half Day" : "Present";
-
-                var title = $"{status} - {item.TotalHours} hrs ({item.WorkType})";
-                var color = item.PunchOutTime == null ? "#6c757d" :
-                                        item.TotalHours < 4 ? "#dc3545" :
-                                        item.TotalHours < 8.5 ? "#ffc107" :
-                                        item.WorkType == "WFO" ? "#28a745" : "#007bff";
-
-                var date = item.CreatedOn?.ToString("yyyy-MM-dd");
-
-                <text>
-                    events.push({
-                        title: "@Html.Raw(title)",
-                        start: "@date",
-                        color: "@color",
-                        extendedProps: {
-                            punchIn: "@(item.PunchInTime?.ToString("HH:mm") ?? "-")",
-                            punchOut: "@(item.PunchOutTime?.ToString("HH:mm") ?? "-")",
-                            punchInSelfie: "@item.SelfiePath",
-                            punchOutSelfie: "@item.PunchOutSelfiePath",
-                            workType: "@item.WorkType",
-                            lat: "@item.Latitude",
-                            lng: "@item.Longitude",
-                            punchOutLat: "@item.PunchOutLatitude",
-                            punchOutLng: "@item.PunchOutLongitude"
-                        }
-                    });
-                </text>
-        }
+        const events = @Html.Raw(ViewBag.CalendarEvents ?? "[]");
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
@@ -219,14 +176,13 @@
             events: events,
             eventClick: function (info) {
                 selectedPunchEventProps = info.event.extendedProps;
+                const props = selectedPunchEventProps;
 
+                // Reset tab to swipes
                 document.querySelectorAll('#modalTabLinks .nav-link').forEach(link => link.classList.remove('active'));
                 document.querySelector('#modalTabLinks .nav-link[href="#modal-swipes"]').classList.add('active');
-
                 document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
                 document.querySelector('#modal-swipes').classList.add('show', 'active');
-
-                const props = selectedPunchEventProps;
 
                 if (props.punchIn !== "-") {
                     $('#punchInRow').show();
@@ -259,27 +215,20 @@
         calendar.render();
     });
 
-          // Show/hide additional fields based on incident type
+    // Handle incident UI toggles
     $('#incidentType').on('change', function () {
         const type = $(this).val();
-
-        // Set swipe & purpose visibility
         $('#swipeDiv').toggle(type === 'Missed Punch');
         $('#purposeDiv').toggle(type === 'On Duty' || type === 'Other');
     });
 
-    // Auto-fill date when opening the modal from calendar
     $('a.nav-link[href="#modal-incident"]').on('click', function (e) {
         e.preventDefault();
-
-        // Show the incident modal instead of tab
         const selectedDate = selectedPunchEventProps?.startStr ?? new Date().toISOString().split('T')[0];
         $('#incidentDate').val(selectedDate);
-
         new bootstrap.Modal(document.getElementById('incidentTypeModal')).show();
     });
 
-    // Optional form handler
     $('#incidentForm').on('submit', function (e) {
         e.preventDefault();
 
@@ -294,13 +243,11 @@
         Swal.fire("Success", "Incident submitted successfully.", "success");
         $('#incidentTypeModal').modal('hide');
 
-        // You can also POST this form data to the server here.
+        // Optionally POST the data to the server
     });
-
-
 </script>
 
-<!-- Style -->
+<!-- Custom Styles -->
 <style>
     .fc-daygrid-event {
         font-size: 0.85em;
